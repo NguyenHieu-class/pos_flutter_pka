@@ -7,6 +7,7 @@ import 'features/diagnostics/presentation/diagnostics_page.dart';
 import 'features/menu/presentation/menu_page.dart';
 import 'features/ordering/controllers/order_controller.dart';
 import 'features/ordering/presentation/bill_page.dart';
+import 'features/orders_log/presentation/orders_log_page.dart';
 import 'features/tables/presentation/tables_page.dart';
 
 final navigationIndexProvider = StateProvider<int>((ref) => 0);
@@ -56,6 +57,7 @@ class AppShell extends ConsumerWidget {
       const TablesPage(),
       MenuPage(orderArgs: defaultOrderArgs),
       BillPage(args: defaultOrderArgs),
+      const OrdersLogPage(),
       const DiagnosticsPage(),
     ];
 
@@ -84,6 +86,11 @@ class AppShell extends ConsumerWidget {
             icon: Icon(Icons.receipt_long_outlined),
             selectedIcon: Icon(Icons.receipt_long),
             label: 'Bill',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history),
+            label: 'Orders Log',
           ),
           NavigationDestination(
             icon: Icon(Icons.monitor_heart_outlined),
