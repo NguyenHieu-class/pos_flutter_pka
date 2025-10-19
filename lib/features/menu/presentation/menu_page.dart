@@ -8,7 +8,9 @@ import '../../ordering/controllers/order_draft_controller.dart';
 import '../controllers/menu_controller.dart';
 
 class MenuPage extends ConsumerWidget {
-  const MenuPage({super.key});
+  const MenuPage({super.key, required this.orderArgs});
+
+  final OrderControllerArgs orderArgs;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,13 +27,13 @@ class MenuPage extends ConsumerWidget {
       }
     });
 
-    ref.listen<OrderState>(orderControllerProvider, (previous, next) {
+    ref.listen<OrderState>(orderControllerProvider(orderArgs), (previous, next) {
       final message = next.errorMessage;
       if (message != null && message.isNotEmpty && message != previous?.errorMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
         );
-        ref.read(orderControllerProvider.notifier).clearError();
+        ref.read(orderControllerProvider(orderArgs).notifier).clearError();
       }
     });
 
@@ -54,7 +56,7 @@ class MenuPage extends ConsumerWidget {
             Expanded(
               child: Stack(
                 children: [
-                  _MenuGrid(state: state),
+                  _MenuGrid(state: state, orderArgs: orderArgs),
                   if (state.isLoading)
                     const Positioned(
                       top: 0,
@@ -189,9 +191,10 @@ class _MenuSearchBarState extends State<_MenuSearchBar> {
 }
 
 class _MenuGrid extends ConsumerWidget {
-  const _MenuGrid({required this.state});
+  const _MenuGrid({required this.state, required this.orderArgs});
 
   final MenuState state;
+  final OrderControllerArgs orderArgs;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -222,7 +225,7 @@ class _MenuGrid extends ConsumerWidget {
           ),
           itemBuilder: (context, index) {
             final item = state.items[index];
-            return _MenuCard(item: item);
+            return _MenuCard(item: item, orderArgs: orderArgs);
           },
         );
       },
@@ -231,9 +234,10 @@ class _MenuGrid extends ConsumerWidget {
 }
 
 class _MenuCard extends ConsumerWidget {
-  const _MenuCard({required this.item});
+  const _MenuCard({required this.item, required this.orderArgs});
 
   final MenuItem item;
+  final OrderControllerArgs orderArgs;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -250,7 +254,7 @@ class _MenuCard extends ConsumerWidget {
             );
             return;
           }
-          await _showAddToOrderSheet(context, item);
+          await _showAddToOrderSheet(context, item, orderArgs);
         },
         borderRadius: BorderRadius.circular(16),
         child: Ink(
@@ -331,6 +335,7 @@ class _MenuCard extends ConsumerWidget {
 Future<void> _showAddToOrderSheet(
   BuildContext context,
   MenuItem item,
+  OrderControllerArgs orderArgs,
 ) async {
   await showModalBottomSheet<void>(
     context: context,
@@ -345,7 +350,8 @@ Future<void> _showAddToOrderSheet(
             final draftState = ref.watch(orderDraftControllerProvider);
             final draft = draftState[item.id] ?? const OrderDraftLine();
             final draftController = ref.read(orderDraftControllerProvider.notifier);
-            final orderController = ref.read(orderControllerProvider.notifier);
+            final orderController =
+                ref.read(orderControllerProvider(orderArgs).notifier);
 
             return SafeArea(
               top: false,

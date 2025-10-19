@@ -1,3 +1,4 @@
+import '../../domain/models/bill_item.dart';
 import '../../domain/models/order.dart';
 
 abstract class OrderRepository {
@@ -12,4 +13,9 @@ abstract class OrderRepository {
     int quantity, {
     String? note,
   });
+  Future<List<BillItem>> getBill(String orderId);
+  Future<void> updateQty(String orderItemId, int quantity);
+  Future<void> removeItem(String orderItemId);
+  Future<Order> applyDiscount(String orderId, double value, DiscountType type);
+  Future<void> pay(String orderId);
 }

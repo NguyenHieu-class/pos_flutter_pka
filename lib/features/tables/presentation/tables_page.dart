@@ -103,11 +103,17 @@ class _TablesGrid extends StatelessWidget {
                 if (orderId == null || !context.mounted) {
                   return;
                 }
-                await Navigator.of(context).push(
+                final updated = await Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => OrderPage(orderId: orderId),
+                    builder: (_) => OrderPage(orderId: orderId, table: table),
                   ),
                 );
+                if (!context.mounted) {
+                  return;
+                }
+                if (updated == true) {
+                  await controller.loadTables();
+                }
               },
             );
           },

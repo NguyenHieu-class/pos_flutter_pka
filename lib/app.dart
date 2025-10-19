@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'data/repositories/fake_order_repo.dart';
+import 'data/repositories/order_repo.dart';
+import 'features/diagnostics/presentation/diagnostics_page.dart';
 import 'features/menu/presentation/menu_page.dart';
+import 'features/ordering/controllers/order_controller.dart';
 import 'features/ordering/presentation/bill_page.dart';
 import 'features/tables/presentation/tables_page.dart';
-import 'features/diagnostics/presentation/diagnostics_page.dart';
 
 final navigationIndexProvider = StateProvider<int>((ref) => 0);
 
@@ -39,21 +42,27 @@ class POSApp extends ConsumerWidget {
 class AppShell extends ConsumerWidget {
   const AppShell({super.key});
 
-  static final _pages = <Widget>[
-    const TablesPage(),
-    const MenuPage(),
-    const BillPage(),
-    const DiagnosticsPage(),
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final index = ref.watch(navigationIndexProvider);
+    final orderRepository = ref.watch(orderRepositoryProvider);
+    String defaultOrderId = 'demo-order';
+    if (orderRepository is FakeOrderRepository) {
+      defaultOrderId = orderRepository.defaultOrderId;
+    }
+    final defaultOrderArgs = OrderControllerArgs(orderId: defaultOrderId);
+
+    final pages = <Widget>[
+      const TablesPage(),
+      MenuPage(orderArgs: defaultOrderArgs),
+      BillPage(args: defaultOrderArgs),
+      const DiagnosticsPage(),
+    ];
 
     return Scaffold(
       body: IndexedStack(
         index: index,
-        children: _pages,
+        children: pages,
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
