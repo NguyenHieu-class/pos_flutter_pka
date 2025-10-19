@@ -5,6 +5,8 @@ import '../../domain/models/menu_item.dart';
 import '../../domain/models/order.dart';
 import '../../domain/models/order_item.dart';
 import '../../domain/models/table.dart';
+import 'fake_menu_repo.dart';
+import 'fake_table_repo.dart';
 import 'menu_repo.dart';
 import 'order_repo.dart';
 import 'table_repo.dart';
@@ -164,7 +166,7 @@ class FakeOrderRepository extends OrderRepository {
 
     final sanitized = value.isNaN || value.isNegative ? 0.0 : value;
     final normalized = type == DiscountType.percent
-        ? sanitized.clamp(0, 100)
+        ? sanitized.clamp(0, 100).toDouble()
         : sanitized;
 
     final updated = order.copyWith(
