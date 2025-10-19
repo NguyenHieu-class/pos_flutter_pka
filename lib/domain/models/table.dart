@@ -1,27 +1,37 @@
+enum TableStatus { available, occupied, reserved }
+
+extension TableStatusLabel on TableStatus {
+  String get label => switch (this) {
+        TableStatus.available => 'Available',
+        TableStatus.occupied => 'Occupied',
+        TableStatus.reserved => 'Reserved',
+      };
+}
+
 class PosTable {
   final String id;
   final String name;
   final int capacity;
-  final bool isOccupied;
+  final TableStatus status;
 
   const PosTable({
     required this.id,
     required this.name,
     required this.capacity,
-    this.isOccupied = false,
+    this.status = TableStatus.available,
   });
 
   PosTable copyWith({
     String? id,
     String? name,
     int? capacity,
-    bool? isOccupied,
+    TableStatus? status,
   }) {
     return PosTable(
       id: id ?? this.id,
       name: name ?? this.name,
       capacity: capacity ?? this.capacity,
-      isOccupied: isOccupied ?? this.isOccupied,
+      status: status ?? this.status,
     );
   }
 }
