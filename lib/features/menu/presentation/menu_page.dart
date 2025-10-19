@@ -11,7 +11,7 @@ import '../../../widgets/app_settings_button.dart';
 import '../../../widgets/skeleton.dart';
 import '../../ordering/controllers/order_controller.dart';
 import '../../ordering/controllers/order_draft_controller.dart';
-import '../controllers/menu_controller.dart';
+import '../controllers/menu_controller.dart' as menu;
 import 'menu_admin_page.dart';
 
 class MenuPage extends ConsumerWidget {
@@ -21,10 +21,10 @@ class MenuPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(menuControllerProvider);
-    final menuController = ref.read(menuControllerProvider.notifier);
+    final state = ref.watch(menu.menuControllerProvider);
+    final menuController = ref.read(menu.menuControllerProvider.notifier);
 
-    ref.listen<MenuState>(menuControllerProvider, (previous, next) {
+    ref.listen<menu.MenuState>(menu.menuControllerProvider, (previous, next) {
       final message = next.errorMessage;
       if (message != null && message.isNotEmpty && message != previous?.errorMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -57,7 +57,7 @@ class MenuPage extends ConsumerWidget {
                 ),
               );
             },
-            icon: const Icon(Icons.manage_list),
+            icon: const Icon(Icons.manage_accounts),
           ),
           const AppSettingsButton(),
         ],
@@ -98,8 +98,8 @@ class MenuPage extends ConsumerWidget {
 class _MenuFilters extends StatelessWidget {
   const _MenuFilters({required this.state, required this.controller});
 
-  final MenuState state;
-  final MenuController controller;
+  final menu.MenuState state;
+  final menu.MenuController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -214,7 +214,7 @@ class _MenuSearchBarState extends State<_MenuSearchBar> {
 class _MenuGrid extends ConsumerWidget {
   const _MenuGrid({required this.state, required this.orderArgs});
 
-  final MenuState state;
+  final menu.MenuState state;
   final OrderControllerArgs orderArgs;
 
   @override

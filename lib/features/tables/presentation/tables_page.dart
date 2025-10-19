@@ -138,7 +138,7 @@ class _TablesGrid extends StatelessWidget {
                   return;
                 }
                 final updated = await Navigator.of(context).push(
-                  MaterialPageRoute<void>(
+                  MaterialPageRoute<bool?>(
                     builder: (_) => OrderPage(orderId: orderId, table: table),
                   ),
                 );

@@ -185,19 +185,11 @@ class MysqlOrderLogRepository extends OrderLogRepository {
       return 0;
     }
 
-    if (value is double) {
-      return value;
-    }
-
-    if (value is int) {
+    if (value is num) {
       return value.toDouble();
     }
 
     if (value is BigInt) {
-      return value.toDouble();
-    }
-
-    if (value is Decimal) {
       return value.toDouble();
     }
 
@@ -217,8 +209,8 @@ class MysqlOrderLogRepository extends OrderLogRepository {
       return value.toInt();
     }
 
-    if (value is Decimal) {
-      return value.toDouble().toInt();
+    if (value is num) {
+      return value.toInt();
     }
 
     return int.tryParse(value.toString()) ?? 0;

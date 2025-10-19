@@ -14,7 +14,7 @@ class MysqlService {
   MySqlConnection? _connection;
 
   Future<MySqlConnection> connect() async {
-    if (_connection != null && !_connection!.isClosed) {
+    if (_connection != null) {
       return _connection!;
     }
 
@@ -66,13 +66,11 @@ class MysqlService {
       return;
     }
 
-    if (!connection.isClosed) {
-      try {
-        await connection.close();
-      } catch (error, stackTrace) {
-        debugPrint('Failed to close MySQL connection: $error');
-        debugPrint('$stackTrace');
-      }
+    try {
+      await connection.close();
+    } catch (error, stackTrace) {
+      debugPrint('Failed to close MySQL connection: $error');
+      debugPrint('$stackTrace');
     }
   }
 
