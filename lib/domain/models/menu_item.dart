@@ -3,14 +3,16 @@ class MenuItem {
   final String name;
   final String category;
   final double price;
-  final bool isAvailable;
+  final bool isActive;
+  final String? imagePath;
 
   const MenuItem({
     required this.id,
     required this.name,
     required this.category,
     required this.price,
-    this.isAvailable = true,
+    this.isActive = true,
+    this.imagePath,
   });
 
   MenuItem copyWith({
@@ -18,14 +20,16 @@ class MenuItem {
     String? name,
     String? category,
     double? price,
-    bool? isAvailable,
+    bool? isActive,
+    String? imagePath,
   }) {
     return MenuItem(
       id: id ?? this.id,
       name: name ?? this.name,
       category: category ?? this.category,
       price: price ?? this.price,
-      isAvailable: isAvailable ?? this.isAvailable,
+      isActive: isActive ?? this.isActive,
+      imagePath: imagePath ?? this.imagePath,
     );
   }
 }
