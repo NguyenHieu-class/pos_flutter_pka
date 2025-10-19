@@ -10,17 +10,31 @@ class BillPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final order = ref.watch(orderControllerProvider).activeOrder;
+    final state = ref.watch(orderControllerProvider);
+    final order = state.activeOrder;
+
+    ref.listen<OrderState>(orderControllerProvider, (previous, next) {
+      final message = next.errorMessage;
+      if (message != null && message.isNotEmpty && message != previous?.errorMessage) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+        ref.read(orderControllerProvider.notifier).clearError();
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bill'),
       ),
-      body: order.items.isEmpty
-          ? const Center(
+      body: Stack(
+        children: [
+          if (order.items.isEmpty)
+            const Center(
               child: Text('No active bill'),
             )
-          : ListView.separated(
+          else
+            ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: order.items.length + 1,
               separatorBuilder: (context, index) => const Divider(),
@@ -39,12 +53,21 @@ class BillPage extends ConsumerWidget {
                 }
                 final item = order.items[index];
                 return ListTile(
-                  title: Text(item.item.name),
-                  subtitle: Text('x${item.quantity}'),
+                  title: Text(item.name),
+                  subtitle: Text('x${item.quantity}${item.note != null ? ' • ${item.note}' : ''}'),
                   trailing: Text(formatVND(item.total)),
                 );
               },
             ),
+          if (state.isLoading)
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(minHeight: 3),
+            ),
+        ],
+      ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16),
         child: FilledButton.icon(
