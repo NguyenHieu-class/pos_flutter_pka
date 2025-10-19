@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../application/database_seeder.dart';
 import '../../../data/datasources/mysql_service.dart';
 
 class DiagnosticsPage extends ConsumerStatefulWidget {
@@ -15,6 +16,7 @@ class _DiagnosticsPageState extends ConsumerState<DiagnosticsPage> {
   String? _databaseName;
   String? _errorMessage;
   bool _isLoading = false;
+  bool _isSeeding = false;
 
   Future<void> _testDatabase() async {
     setState(() {
@@ -22,6 +24,7 @@ class _DiagnosticsPageState extends ConsumerState<DiagnosticsPage> {
       _errorMessage = null;
       _currentTime = null;
       _databaseName = null;
+      _isSeeding = false;
     });
 
     final messenger = ScaffoldMessenger.of(context);
@@ -83,6 +86,53 @@ class _DiagnosticsPageState extends ConsumerState<DiagnosticsPage> {
     }
   }
 
+  Future<void> _loadSeed() async {
+    setState(() {
+      _isSeeding = true;
+      _errorMessage = null;
+    });
+
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      final seeder = ref.read(databaseSeederProvider);
+      await seeder.runSeed();
+
+      if (!mounted) {
+        return;
+      }
+
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Seed data loaded successfully.')),
+      );
+    } catch (error, stackTrace) {
+      debugPrint('Seed load failed: $error');
+      debugPrint('$stackTrace');
+
+      if (!mounted) {
+        return;
+      }
+
+      final message = 'Seed load failed: $error';
+      setState(() {
+        _errorMessage = message;
+        _currentTime = null;
+        _databaseName = null;
+      });
+      messenger.showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } finally {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isSeeding = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -99,16 +149,33 @@ class _DiagnosticsPageState extends ConsumerState<DiagnosticsPage> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: _isLoading ? null : _testDatabase,
-              icon: _isLoading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.play_arrow),
-              label: const Text('Test DB'),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                FilledButton.icon(
+                  onPressed: _isLoading || _isSeeding ? null : _testDatabase,
+                  icon: _isLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.play_arrow),
+                  label: const Text('Test DB'),
+                ),
+                FilledButton.icon(
+                  onPressed: _isLoading || _isSeeding ? null : _loadSeed,
+                  icon: _isSeeding
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.dataset),
+                  label: const Text('Load Seed'),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             if (_currentTime != null && _databaseName != null)
