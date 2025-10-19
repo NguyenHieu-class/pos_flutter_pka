@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mysql1/mysql1.dart';
 
 import '../../config/db_config.dart';
@@ -7,8 +9,11 @@ class MysqlService {
 
   MySqlConnection? _connection;
 
-  Future<void> connect() async {
-    // TODO: implement real connection logic when ready
+  Future<MySqlConnection> connect() async {
+    if (_connection != null && !_connection!.isClosed) {
+      return _connection!;
+    }
+
     final settings = ConnectionSettings(
       host: DbConfig.host,
       port: DbConfig.port,
@@ -16,15 +21,33 @@ class MysqlService {
       password: DbConfig.password,
       db: DbConfig.database,
     );
-    // ignore: avoid_print
-    print('MysqlService.connect called with settings: '
-        '${settings.host}:${settings.port}/${settings.db}');
+
+    _connection = await MySqlConnection.connect(settings);
+    return _connection!;
   }
 
-  MySqlConnection? get connection => _connection;
+  Future<MySqlConnection> getConnection() => connect();
 
   Future<void> close() async {
-    await _connection?.close();
+    final connection = _connection;
     _connection = null;
+    if (connection == null) {
+      return;
+    }
+
+    if (!connection.isClosed) {
+      try {
+        await connection.close();
+      } catch (error, stackTrace) {
+        debugPrint('Failed to close MySQL connection: $error');
+        debugPrint('$stackTrace');
+      }
+    }
   }
 }
+
+final mysqlServiceProvider = Provider<MysqlService>((ref) {
+  final service = MysqlService();
+  ref.onDispose(service.close);
+  return service;
+});
