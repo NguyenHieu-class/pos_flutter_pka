@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/datasources/mysql_service.dart';
+import '../../../core/exceptions.dart';
 
 class DatabaseSeeder {
   DatabaseSeeder(this._mysqlService);
@@ -9,9 +10,8 @@ class DatabaseSeeder {
   final MysqlService _mysqlService;
 
   Future<void> runSeed() async {
-    final connection = await _mysqlService.getConnection();
-
     try {
+      final connection = await _mysqlService.getConnection();
       await connection.transaction((ctx) async {
         await ctx.query('DELETE FROM order_items');
         await ctx.query('DELETE FROM orders');
@@ -60,10 +60,15 @@ class DatabaseSeeder {
           );
         }
       });
+    } on AppException {
+      rethrow;
     } catch (error, stackTrace) {
       debugPrint('Database seed failed: $error');
       debugPrint('$stackTrace');
-      rethrow;
+      throw DatabaseException(
+        'Không thể nạp dữ liệu mẫu. Vui lòng kiểm tra cơ sở dữ liệu.',
+        cause: error,
+      );
     }
   }
 }

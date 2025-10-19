@@ -7,6 +7,8 @@ import 'package:path/path.dart' as p;
 import '../../../core/currency.dart';
 import '../../../core/providers/documents_directory_provider.dart';
 import '../../../domain/models/menu_item.dart';
+import '../../../widgets/app_settings_button.dart';
+import '../../../widgets/skeleton.dart';
 import '../../ordering/controllers/order_controller.dart';
 import '../../ordering/controllers/order_draft_controller.dart';
 import '../controllers/menu_controller.dart';
@@ -57,6 +59,7 @@ class MenuPage extends ConsumerWidget {
             },
             icon: const Icon(Icons.manage_list),
           ),
+          const AppSettingsButton(),
         ],
       ),
       body: Padding(
@@ -217,26 +220,55 @@ class _MenuGrid extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (state.isLoading && state.items.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final maxExtent = _resolveMenuMaxExtent(constraints.maxWidth);
+          return GridView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: maxExtent,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: 3 / 4,
+            ),
+            itemCount: 6,
+            itemBuilder: (_, __) => const _MenuCardSkeleton(),
+          );
+        },
+      );
     }
 
     if (state.items.isEmpty) {
-      return const Center(
-        child: Text('Không tìm thấy món phù hợp'),
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.restaurant_menu,
+                size: 80,
+                color: Theme.of(context).colorScheme.outline,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Không tìm thấy món phù hợp. Thử đổi bộ lọc hoặc từ khoá.',
+                style: Theme.of(context).textTheme.bodyLarge,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       );
     }
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final minTileWidth = 200.0;
-        final crossAxisCount = width ~/ minTileWidth;
-        final count = crossAxisCount >= 1 ? crossAxisCount : 1;
-
+        final maxExtent = _resolveMenuMaxExtent(constraints.maxWidth);
         return GridView.builder(
           itemCount: state.items.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: count,
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: maxExtent,
             mainAxisSpacing: 16,
             crossAxisSpacing: 16,
             childAspectRatio: 3 / 4,
@@ -247,6 +279,49 @@ class _MenuGrid extends ConsumerWidget {
           },
         );
       },
+    );
+  }
+}
+
+double _resolveMenuMaxExtent(double width) {
+  if (width >= 1400) {
+    return 340;
+  }
+  if (width >= 1100) {
+    return 300;
+  }
+  if (width >= 800) {
+    return 260;
+  }
+  if (width >= 600) {
+    return 240;
+  }
+  return width.clamp(200, 240);
+}
+
+class _MenuCardSkeleton extends StatelessWidget {
+  const _MenuCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Expanded(
+              child: SkeletonBox(),
+            ),
+            SizedBox(height: 12),
+            SkeletonBox(width: 180, height: 18),
+            SizedBox(height: 6),
+            SkeletonBox(width: 120, height: 14),
+            SizedBox(height: 10),
+            SkeletonBox(width: 100, height: 18),
+          ],
+        ),
+      ),
     );
   }
 }

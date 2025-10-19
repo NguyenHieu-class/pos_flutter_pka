@@ -1,8 +1,12 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mysql1/mysql1.dart';
 
 import '../../config/db_config.dart';
+import '../../core/exceptions.dart';
 
 class MysqlService {
   MysqlService();
@@ -22,8 +26,35 @@ class MysqlService {
       db: DbConfig.database,
     );
 
-    _connection = await MySqlConnection.connect(settings);
-    return _connection!;
+    try {
+      _connection = await MySqlConnection.connect(settings);
+      return _connection!;
+    } on TimeoutException catch (error, stackTrace) {
+      debugPrint('MySQL connect timeout: $error');
+      debugPrint('$stackTrace');
+      throw const DatabaseException(
+        'Không thể kết nối tới cơ sở dữ liệu. Vui lòng kiểm tra máy chủ và mạng.',
+      );
+    } on SocketException catch (error, stackTrace) {
+      debugPrint('MySQL socket error: $error');
+      debugPrint('$stackTrace');
+      throw const DatabaseException(
+        'Không thể kết nối tới cơ sở dữ liệu. Vui lòng kiểm tra mạng nội bộ.',
+      );
+    } on MySqlException catch (error, stackTrace) {
+      debugPrint('MySQL connection error: ${error.message}');
+      debugPrint('$stackTrace');
+      throw DatabaseException(
+        'Kết nối cơ sở dữ liệu thất bại (${error.errorNumber}). Vui lòng thử lại.',
+        cause: error,
+      );
+    } catch (error, stackTrace) {
+      debugPrint('Unexpected MySQL connection error: $error');
+      debugPrint('$stackTrace');
+      throw const DatabaseException(
+        'Không thể kết nối tới cơ sở dữ liệu. Vui lòng thử lại sau.',
+      );
+    }
   }
 
   Future<MySqlConnection> getConnection() => connect();
@@ -44,6 +75,8 @@ class MysqlService {
       }
     }
   }
+
+  Future<void> resetConnection() => close();
 }
 
 final mysqlServiceProvider = Provider<MysqlService>((ref) {

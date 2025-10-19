@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/exceptions.dart';
 import '../../../data/repositories/mysql_order_log_repository.dart';
 import '../../../data/repositories/order_log_repository.dart';
 import '../../../domain/models/order_log.dart';
@@ -81,7 +82,10 @@ class OrdersLogController extends StateNotifier<OrdersLogState> {
     } catch (error) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'Không thể tải lịch sử đơn: $error',
+        errorMessage: _resolveErrorMessage(
+          'Không thể tải lịch sử đơn. Vui lòng thử lại.',
+          error,
+        ),
       );
     }
   }
@@ -154,9 +158,26 @@ final ordersLogControllerProvider =
 
 final orderLogDetailProvider = FutureProvider.autoDispose.family<OrderLogDetail, int>((ref, orderId) async {
   final repository = ref.watch(orderLogRepositoryProvider);
-  final detail = await repository.fetchDetail(orderId);
-  if (detail == null) {
-    throw StateError('Order $orderId không tồn tại');
+  try {
+    final detail = await repository.fetchDetail(orderId);
+    if (detail == null) {
+      throw const DatabaseException('Hoá đơn không tồn tại hoặc đã bị xoá.');
+    }
+    return detail;
+  } catch (error) {
+    if (error is DatabaseException) {
+      throw error;
+    }
+    throw DatabaseException(
+      'Không thể tải chi tiết hoá đơn. Vui lòng thử lại.',
+      cause: error,
+    );
   }
-  return detail;
 });
+
+String _resolveErrorMessage(String fallback, Object error) {
+  if (error is AppException) {
+    return error.message;
+  }
+  return fallback;
+}
