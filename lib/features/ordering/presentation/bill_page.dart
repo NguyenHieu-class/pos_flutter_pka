@@ -2,62 +2,74 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/currency.dart';
-import '../../../core/utils.dart';
+import '../../../domain/models/bill_item.dart';
+import '../../../domain/models/order.dart';
 import '../controllers/order_controller.dart';
 
 class BillPage extends ConsumerWidget {
-  const BillPage({super.key});
+  const BillPage({
+    super.key,
+    required this.args,
+    this.tableName,
+  });
+
+  final OrderControllerArgs args;
+  final String? tableName;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(orderControllerProvider);
+    final state = ref.watch(orderControllerProvider(args));
     final order = state.activeOrder;
 
-    ref.listen<OrderState>(orderControllerProvider, (previous, next) {
+    ref.listen<OrderState>(orderControllerProvider(args), (previous, next) {
       final message = next.errorMessage;
       if (message != null && message.isNotEmpty && message != previous?.errorMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
         );
-        ref.read(orderControllerProvider.notifier).clearError();
+        ref.read(orderControllerProvider(args).notifier).clearError();
       }
     });
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bill'),
+        title: Text('Bill #${order.id}'),
+        bottom: tableName == null
+            ? null
+            : PreferredSize(
+                preferredSize: const Size.fromHeight(24),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    tableName!,
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelLarge
+                        ?.copyWith(color: Theme.of(context).colorScheme.onPrimary),
+                  ),
+                ),
+              ),
       ),
       body: Stack(
         children: [
-          if (order.items.isEmpty)
+          if (state.billItems.isEmpty)
             const Center(
-              child: Text('No active bill'),
+              child: Text('Chưa có món trong hoá đơn'),
             )
           else
-            ListView.separated(
+            ListView(
               padding: const EdgeInsets.all(16),
-              itemCount: order.items.length + 1,
-              separatorBuilder: (context, index) => const Divider(),
-              itemBuilder: (context, index) {
-                if (index == order.items.length) {
-                  return ListTile(
-                    title: const Text(
-                      'Total',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    trailing: Text(
-                      formatVND(order.total),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  );
-                }
-                final item = order.items[index];
-                return ListTile(
-                  title: Text(item.name),
-                  subtitle: Text('x${item.quantity}${item.note != null ? ' • ${item.note}' : ''}'),
-                  trailing: Text(formatVND(item.total)),
-                );
-              },
+              children: [
+                ...state.billItems.map(
+                  (item) => Column(
+                    children: [
+                      _BillItemTile(item: item),
+                      const Divider(),
+                    ],
+                  ),
+                ),
+                _SummarySection(order: order),
+              ],
             ),
           if (state.isLoading)
             const Positioned(
@@ -68,13 +80,89 @@ class BillPage extends ConsumerWidget {
             ),
         ],
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16),
-        child: FilledButton.icon(
-          onPressed: () => AppUtils.showNotImplementedSnackBar(context),
-          icon: const Icon(Icons.print),
-          label: const Text('Finalize Bill'),
+    );
+  }
+}
+
+class _BillItemTile extends StatelessWidget {
+  const _BillItemTile({required this.item});
+
+  final BillItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(
+        item.name,
+        style: theme.textTheme.titleMedium,
+      ),
+      subtitle: Text('x${item.quantity} • ${formatVND(item.unitPrice)}'),
+      trailing: Text(
+        formatVND(item.amount),
+        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+}
+
+class _SummarySection extends StatelessWidget {
+  const _SummarySection({required this.order});
+
+  final Order order;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 8),
+        _SummaryRow(label: 'Tạm tính', value: formatVND(order.subtotal)),
+        _SummaryRow(
+          label: 'Giảm giá',
+          value: order.discountAmount == 0
+              ? formatVND(0)
+              : '-${formatVND(order.discountAmount)}',
         ),
+        const Divider(height: 24),
+        Text(
+          'Tổng thanh toán',
+          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        Text(
+          formatVND(order.total),
+          style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.bodyLarge,
+          ),
+          Text(
+            value,
+            style: theme.textTheme.bodyLarge,
+          ),
+        ],
       ),
     );
   }
