@@ -10,4 +10,10 @@ abstract class MenuRepository {
   });
 
   Future<double> getItemPrice(String itemId);
+
+  Future<MenuItem> create(MenuItem item);
+
+  Future<MenuItem> update(MenuItem item);
+
+  Future<MenuItem> toggleActive(String itemId, bool isActive);
 }
