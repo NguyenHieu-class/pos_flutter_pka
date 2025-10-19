@@ -1,11 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../core/currency.dart';
+import '../../../core/providers/documents_directory_provider.dart';
 import '../../../domain/models/menu_item.dart';
 import '../../ordering/controllers/order_controller.dart';
 import '../../ordering/controllers/order_draft_controller.dart';
 import '../controllers/menu_controller.dart';
+import 'menu_admin_page.dart';
 
 class MenuPage extends ConsumerWidget {
   const MenuPage({super.key, required this.orderArgs});
@@ -40,6 +45,19 @@ class MenuPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Menu'),
+        actions: [
+          IconButton(
+            tooltip: 'Quản lý menu',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const MenuAdminPage(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.manage_list),
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -277,23 +295,7 @@ class _MenuCard extends ConsumerWidget {
                     width: double.infinity,
                     color: colorScheme.surfaceVariant,
                     alignment: Alignment.center,
-                    child: item.imagePath != null
-                        ? Image.asset(
-                            item.imagePath!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Icon(
-                                Icons.restaurant,
-                                size: 40,
-                                color: colorScheme.outline,
-                              );
-                            },
-                          )
-                        : Icon(
-                            Icons.restaurant,
-                            size: 40,
-                            color: colorScheme.outline,
-                          ),
+                    child: _MenuItemImage(item: item),
                   ),
                 ),
               ),
@@ -327,6 +329,74 @@ class _MenuCard extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _MenuItemImage extends ConsumerWidget {
+  const _MenuItemImage({required this.item});
+
+  final MenuItem item;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final imagePath = item.imagePath;
+    if (imagePath == null || imagePath.isEmpty) {
+      return Icon(
+        Icons.restaurant,
+        size: 40,
+        color: colorScheme.outline,
+      );
+    }
+
+    if (imagePath.startsWith('assets/')) {
+      return Image.asset(
+        imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Icon(
+            Icons.restaurant,
+            size: 40,
+            color: colorScheme.outline,
+          );
+        },
+      );
+    }
+
+    final documentsDirectory = ref.watch(documentsDirectoryProvider);
+    return documentsDirectory.when(
+      data: (dir) {
+        final file = File(p.join(dir, imagePath));
+        if (!file.existsSync()) {
+          return Icon(
+            Icons.broken_image_outlined,
+            size: 40,
+            color: colorScheme.outline,
+          );
+        }
+        return Image.file(
+          file,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Icon(
+              Icons.restaurant,
+              size: 40,
+              color: colorScheme.outline,
+            );
+          },
+        );
+      },
+      loading: () => const SizedBox(
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+      error: (error, stackTrace) => Icon(
+        Icons.broken_image_outlined,
+        size: 40,
+        color: colorScheme.error,
       ),
     );
   }

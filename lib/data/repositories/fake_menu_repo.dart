@@ -102,6 +102,34 @@ class FakeMenuRepository extends MenuRepository {
     );
     return item.price;
   }
+
+  @override
+  Future<MenuItem> create(MenuItem item) async {
+    final newItem = item;
+    _items.add(newItem);
+    return newItem;
+  }
+
+  @override
+  Future<MenuItem> update(MenuItem item) async {
+    final index = _items.indexWhere((element) => element.id == item.id);
+    if (index == -1) {
+      throw StateError('Menu item with id ${item.id} could not be found');
+    }
+    _items[index] = item;
+    return item;
+  }
+
+  @override
+  Future<MenuItem> toggleActive(String itemId, bool isActive) async {
+    final index = _items.indexWhere((element) => element.id == itemId);
+    if (index == -1) {
+      throw StateError('Menu item with id $itemId could not be found');
+    }
+    final updated = _items[index].copyWith(isActive: isActive);
+    _items[index] = updated;
+    return updated;
+  }
 }
 
 final menuRepositoryProvider = Provider<MenuRepository>((ref) {
