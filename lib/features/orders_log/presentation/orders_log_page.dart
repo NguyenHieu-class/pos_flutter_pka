@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../../core/currency.dart';
 import '../../../domain/models/order.dart';
 import '../../../domain/models/order_log.dart';
+import '../../../widgets/app_settings_button.dart';
+import '../../../widgets/skeleton.dart';
 import '../controllers/orders_log_controller.dart';
 import 'order_log_detail_page.dart';
 
@@ -58,6 +60,7 @@ class _OrdersLogPageState extends ConsumerState<OrdersLogPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Orders Log'),
+        actions: const [AppSettingsButton()],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -94,8 +97,6 @@ class _OrdersLogPageState extends ConsumerState<OrdersLogPage> {
                       isLoading: state.isLoading,
                     ),
                   ),
-                  if (state.isLoading && state.orders.isEmpty)
-                    const Center(child: CircularProgressIndicator()),
                   if (state.isLoading && state.orders.isNotEmpty)
                     const Positioned(
                       top: 0,
@@ -196,12 +197,28 @@ class _OrdersList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (orders.isEmpty && isLoading) {
+      return ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: 6,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemBuilder: (context, index) => const _OrderTileSkeleton(),
+      );
+    }
+
     if (orders.isEmpty && !isLoading) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          SizedBox(height: 120),
-          Center(child: Text('Không tìm thấy đơn nào.')),
+        padding: const EdgeInsets.symmetric(vertical: 64, horizontal: 16),
+        children: [
+          Icon(Icons.receipt_long, size: 72, color: Theme.of(context).colorScheme.outline),
+          const SizedBox(height: 12),
+          Text(
+            'Không tìm thấy đơn nào trong khoảng thời gian này.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
         ],
       );
     }
@@ -271,6 +288,37 @@ class _OrderTile extends ConsumerWidget {
       OrderStatus.cancelled => colorScheme.error,
       OrderStatus.open => colorScheme.primary,
     };
+  }
+}
+
+class _OrderTileSkeleton extends StatelessWidget {
+  const _OrderTileSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SkeletonBox(width: 160, height: 16),
+            SizedBox(height: 12),
+            SkeletonBox(width: 120, height: 14),
+            SizedBox(height: 8),
+            SkeletonBox(width: double.infinity, height: 14),
+            SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                SkeletonBox(width: 100, height: 18),
+                SkeletonBox(width: 80, height: 20),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

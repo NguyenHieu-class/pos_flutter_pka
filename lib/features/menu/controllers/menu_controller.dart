@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/exceptions.dart';
 import '../../../data/repositories/fake_menu_repo.dart';
 import '../../../data/repositories/menu_repo.dart';
 import '../../../domain/models/menu_item.dart';
@@ -92,7 +93,7 @@ class MenuController extends StateNotifier<MenuState> {
     } catch (error) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'Không thể tải menu: $error',
+        errorMessage: _friendlyMessage('Không thể tải menu. Vui lòng thử lại.', error),
       );
     }
   }
@@ -126,6 +127,13 @@ class MenuController extends StateNotifier<MenuState> {
       state = state.copyWith(errorMessage: null);
     }
   }
+}
+
+String _friendlyMessage(String fallback, Object error) {
+  if (error is AppException) {
+    return error.message;
+  }
+  return fallback;
 }
 
 final menuControllerProvider =

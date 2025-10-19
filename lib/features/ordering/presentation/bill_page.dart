@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../core/currency.dart';
+import '../../../core/settings/app_settings_controller.dart';
 import '../../../domain/models/bill_item.dart';
 import '../../../domain/models/order.dart';
 import '../controllers/order_controller.dart';
+import '../../../widgets/app_settings_button.dart';
 
-class BillPage extends ConsumerWidget {
+class BillPage extends ConsumerStatefulWidget {
   const BillPage({
     super.key,
     required this.args,
@@ -17,31 +20,61 @@ class BillPage extends ConsumerWidget {
   final String? tableName;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(orderControllerProvider(args));
-    final order = state.activeOrder;
+  ConsumerState<BillPage> createState() => _BillPageState();
+}
 
-    ref.listen<OrderState>(orderControllerProvider(args), (previous, next) {
+class _BillPageState extends ConsumerState<BillPage> {
+  bool? _isKeepingAwake;
+
+  @override
+  void dispose() {
+    WakelockPlus.disable();
+    super.dispose();
+  }
+
+  void _updateKeepAwake(bool shouldKeepAwake) {
+    if (_isKeepingAwake == shouldKeepAwake) {
+      return;
+    }
+    _isKeepingAwake = shouldKeepAwake;
+    if (shouldKeepAwake) {
+      WakelockPlus.enable();
+    } else {
+      WakelockPlus.disable();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(orderControllerProvider(widget.args));
+    final order = state.activeOrder;
+    final keepScreenAwake = ref.watch(
+      appSettingsControllerProvider.select((value) => value.keepScreenAwakeOnBill),
+    );
+    _updateKeepAwake(keepScreenAwake);
+
+    ref.listen<OrderState>(orderControllerProvider(widget.args), (previous, next) {
       final message = next.errorMessage;
       if (message != null && message.isNotEmpty && message != previous?.errorMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
         );
-        ref.read(orderControllerProvider(args).notifier).clearError();
+        ref.read(orderControllerProvider(widget.args).notifier).clearError();
       }
     });
 
     return Scaffold(
       appBar: AppBar(
         title: Text('Bill #${order.id}'),
-        bottom: tableName == null
+        actions: const [AppSettingsButton()],
+        bottom: widget.tableName == null
             ? null
             : PreferredSize(
                 preferredSize: const Size.fromHeight(24),
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Text(
-                    tableName!,
+                    widget.tableName!,
                     style: Theme.of(context)
                         .textTheme
                         .labelLarge
@@ -53,8 +86,26 @@ class BillPage extends ConsumerWidget {
       body: Stack(
         children: [
           if (state.billItems.isEmpty)
-            const Center(
-              child: Text('Chưa có món trong hoá đơn'),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.receipt_long,
+                      size: 80,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Chưa có món trong hoá đơn. Thêm món từ trang Menu.',
+                      style: Theme.of(context).textTheme.bodyLarge,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
             )
           else
             ListView(

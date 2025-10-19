@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/exceptions.dart';
 import '../../../data/repositories/fake_table_repo.dart';
 import '../../../data/repositories/table_repo.dart';
 import '../../../domain/models/table.dart';
@@ -79,7 +80,7 @@ class TablesController extends StateNotifier<TablesState> {
     } catch (error) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'Failed to load tables: $error',
+        errorMessage: _friendlyMessage('Không thể tải danh sách bàn. Vui lòng thử lại.', error),
       );
     }
   }
@@ -127,7 +128,7 @@ class TablesController extends StateNotifier<TablesState> {
       return orderId;
     } catch (error) {
       state = state.copyWith(
-        errorMessage: 'Unable to open order: $error',
+        errorMessage: _friendlyMessage('Không thể mở hoá đơn cho bàn này. Vui lòng thử lại.', error),
       );
       return null;
     }
@@ -138,6 +139,13 @@ class TablesController extends StateNotifier<TablesState> {
       state = state.copyWith(errorMessage: null);
     }
   }
+}
+
+String _friendlyMessage(String fallback, Object error) {
+  if (error is AppException) {
+    return error.message;
+  }
+  return fallback;
 }
 
 final tablesControllerProvider =

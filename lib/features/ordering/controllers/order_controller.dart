@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/order_repo.dart';
 import '../../../domain/models/bill_item.dart';
 import '../../../domain/models/order.dart';
+import '../../../core/exceptions.dart';
 
 class OrderControllerArgs {
   const OrderControllerArgs({
@@ -119,7 +120,7 @@ class OrderController extends StateNotifier<OrderState> {
     } catch (error) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'Không thể tải order: $error',
+        errorMessage: _errorMessage('Không thể tải hoá đơn. Vui lòng thử lại.', error),
       );
     }
   }
@@ -137,7 +138,7 @@ class OrderController extends StateNotifier<OrderState> {
     } catch (error) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: '$error',
+        errorMessage: _errorMessage('Không thể thêm món. Vui lòng thử lại.', error),
       );
       return false;
     }
@@ -160,7 +161,7 @@ class OrderController extends StateNotifier<OrderState> {
     } catch (error) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: '$error',
+        errorMessage: _errorMessage('Không thể cập nhật số lượng. Vui lòng thử lại.', error),
       );
     }
   }
@@ -173,7 +174,7 @@ class OrderController extends StateNotifier<OrderState> {
     } catch (error) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: '$error',
+        errorMessage: _errorMessage('Không thể xoá món. Vui lòng thử lại.', error),
       );
     }
   }
@@ -187,7 +188,7 @@ class OrderController extends StateNotifier<OrderState> {
     } catch (error) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: '$error',
+        errorMessage: _errorMessage('Không thể áp dụng giảm giá. Vui lòng thử lại.', error),
       );
     }
   }
@@ -201,7 +202,7 @@ class OrderController extends StateNotifier<OrderState> {
     } catch (error) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: '$error',
+        errorMessage: _errorMessage('Thanh toán thất bại. Vui lòng thử lại.', error),
       );
       return false;
     }
@@ -225,7 +226,7 @@ class OrderController extends StateNotifier<OrderState> {
     } catch (error) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: '$error',
+        errorMessage: _errorMessage('Không thể tải hoá đơn. Vui lòng thử lại.', error),
       );
     }
   }
@@ -237,9 +238,16 @@ class OrderController extends StateNotifier<OrderState> {
     } catch (error) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: '$error',
+        errorMessage: _errorMessage('Không thể cập nhật hoá đơn. Vui lòng thử lại.', error),
       );
     }
+  }
+
+  String _errorMessage(String fallback, Object error) {
+    if (error is AppException) {
+      return error.message;
+    }
+    return fallback;
   }
 }
 

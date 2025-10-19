@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../application/database_seeder.dart';
 import '../../../data/datasources/mysql_service.dart';
+import '../../../core/exceptions.dart';
+import '../../../widgets/app_settings_button.dart';
 
 class DiagnosticsPage extends ConsumerStatefulWidget {
   const DiagnosticsPage({super.key});
@@ -42,7 +44,7 @@ class _DiagnosticsPageState extends ConsumerState<DiagnosticsPage> {
       }
 
       if (results.isEmpty) {
-        const message = 'Query returned no results.';
+        const message = 'Truy vấn không trả dữ liệu.';
         setState(() {
           _errorMessage = message;
         });
@@ -68,7 +70,9 @@ class _DiagnosticsPageState extends ConsumerState<DiagnosticsPage> {
         return;
       }
 
-      final message = 'Database test failed: $error';
+      final message = error is AppException
+          ? error.message
+          : 'Không thể kiểm tra kết nối cơ sở dữ liệu. Vui lòng thử lại.';
       setState(() {
         _errorMessage = message;
       });
@@ -103,7 +107,7 @@ class _DiagnosticsPageState extends ConsumerState<DiagnosticsPage> {
       }
 
       messenger.showSnackBar(
-        const SnackBar(content: Text('Seed data loaded successfully.')),
+        const SnackBar(content: Text('Đã nạp dữ liệu mẫu thành công.')),
       );
     } catch (error, stackTrace) {
       debugPrint('Seed load failed: $error');
@@ -113,7 +117,9 @@ class _DiagnosticsPageState extends ConsumerState<DiagnosticsPage> {
         return;
       }
 
-      final message = 'Seed load failed: $error';
+      final message = error is AppException
+          ? error.message
+          : 'Không thể nạp dữ liệu mẫu. Vui lòng thử lại.';
       setState(() {
         _errorMessage = message;
         _currentTime = null;
@@ -138,6 +144,7 @@ class _DiagnosticsPageState extends ConsumerState<DiagnosticsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Diagnostics'),
+        actions: const [AppSettingsButton()],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),

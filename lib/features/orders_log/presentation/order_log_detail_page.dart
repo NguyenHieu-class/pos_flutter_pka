@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/currency.dart';
+import '../../../core/exceptions.dart';
 import '../../../domain/models/bill_item.dart';
 import '../../../domain/models/order.dart';
+import '../../../widgets/app_settings_button.dart';
+import '../../../widgets/skeleton.dart';
 import '../controllers/orders_log_controller.dart';
 
 class OrderLogDetailPage extends ConsumerWidget {
@@ -22,6 +25,7 @@ class OrderLogDetailPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Order #$orderId'),
+        actions: const [AppSettingsButton()],
       ),
       body: detailAsync.when(
         data: (detail) {
@@ -86,19 +90,79 @@ class OrderLogDetailPage extends ConsumerWidget {
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const _OrderDetailSkeleton(),
         error: (error, stackTrace) {
+          final message = error is AppException
+              ? error.message
+              : 'Không thể tải chi tiết hoá đơn. Vui lòng thử lại.';
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Text(
-                'Không thể tải chi tiết: $error',
+                message,
                 textAlign: TextAlign.center,
               ),
             ),
           );
         },
       ),
+    );
+  }
+}
+
+class _OrderDetailSkeleton extends StatelessWidget {
+  const _OrderDetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: const [
+        Card(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonBox(width: 180, height: 18),
+                SizedBox(height: 12),
+                SkeletonBox(width: 140, height: 14),
+                SizedBox(height: 8),
+                SkeletonBox(width: 160, height: 14),
+              ],
+            ),
+          ),
+        ),
+        SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              children: [
+                SkeletonBox(width: double.infinity, height: 20),
+                SizedBox(height: 12),
+                SkeletonBox(width: double.infinity, height: 20),
+                SizedBox(height: 12),
+                SkeletonBox(width: double.infinity, height: 20),
+              ],
+            ),
+          ),
+        ),
+        SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonBox(width: 120, height: 16),
+                SizedBox(height: 12),
+                SkeletonBox(width: 200, height: 20),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

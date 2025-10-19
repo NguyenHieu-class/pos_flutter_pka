@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/models/table.dart';
 import '../../ordering/presentation/order_page.dart';
 import '../controllers/tables_controller.dart';
+import '../../../widgets/app_settings_button.dart';
+import '../../../widgets/skeleton.dart';
 
 class TablesPage extends ConsumerWidget {
   const TablesPage({super.key});
@@ -26,6 +28,7 @@ class TablesPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tables'),
+        actions: const [AppSettingsButton()],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -72,24 +75,55 @@ class _TablesGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (state.isLoading && state.tables.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final maxExtent = _resolveTableMaxExtent(constraints.maxWidth);
+          return GridView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: 6,
+            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: maxExtent,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: 16 / 9,
+            ),
+            itemBuilder: (_, __) => const SkeletonBox(),
+          );
+        },
+      );
     }
 
     if (state.tables.isEmpty) {
-      return const Center(child: Text('No tables found'));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.table_bar,
+                size: 80,
+                color: Theme.of(context).colorScheme.outline,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Chưa có bàn phù hợp với bộ lọc hiện tại.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final minTileWidth = 200.0;
-        final crossAxisCount = width ~/ minTileWidth;
-        final count = crossAxisCount >= 1 ? crossAxisCount : 1;
-
+        final maxExtent = _resolveTableMaxExtent(constraints.maxWidth);
         return GridView.builder(
           itemCount: state.tables.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: count,
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: maxExtent,
             mainAxisSpacing: 16,
             crossAxisSpacing: 16,
             childAspectRatio: 16 / 9,
@@ -121,6 +155,22 @@ class _TablesGrid extends StatelessWidget {
       },
     );
   }
+}
+
+double _resolveTableMaxExtent(double width) {
+  if (width >= 1400) {
+    return 360;
+  }
+  if (width >= 1100) {
+    return 320;
+  }
+  if (width >= 800) {
+    return 280;
+  }
+  if (width >= 600) {
+    return 240;
+  }
+  return width.clamp(200, 260);
 }
 
 class _TableTile extends StatelessWidget {
