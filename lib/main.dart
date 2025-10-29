@@ -1,13 +1,79 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
-import 'app.dart';
+import 'models/user.dart';
+import 'screens/home_admin_screen.dart';
+import 'screens/home_cashier_screen.dart';
+import 'screens/home_kitchen_screen.dart';
+import 'screens/login_screen.dart';
+import 'services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(
-    const ProviderScope(
-      child: POSApp(),
-    ),
-  );
+  Intl.defaultLocale = 'vi_VN';
+  runApp(const POSApp());
+}
+
+/// Root widget responsible for bootstrapping authentication state and routing.
+class POSApp extends StatefulWidget {
+  const POSApp({super.key});
+
+  @override
+  State<POSApp> createState() => _POSAppState();
+}
+
+class _POSAppState extends State<POSApp> {
+  final _authService = AuthService.instance;
+  late Future<User?> _sessionFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _sessionFuture = _authService.loadSavedSession();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
+      appBarTheme: const AppBarTheme(centerTitle: true),
+      snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
+    );
+
+    return MaterialApp(
+      title: 'PKA POS',
+      debugShowCheckedModeBanner: false,
+      theme: theme,
+      routes: {
+        '/': (context) => const LoginScreen(),
+      },
+      home: FutureBuilder<User?>(
+        future: _sessionFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          return ValueListenableBuilder<User?>(
+            valueListenable: _authService.currentUser,
+            builder: (context, user, _) {
+              if (user == null) {
+                return const LoginScreen();
+              }
+              switch (user.role) {
+                case 'admin':
+                  return const HomeAdminScreen();
+                case 'kitchen':
+                  return const HomeKitchenScreen();
+                default:
+                  return const HomeCashierScreen();
+              }
+            },
+          );
+        },
+      ),
+    );
+  }
 }
