@@ -1,3 +1,4 @@
+import '../utils/json_utils.dart';
 import 'modifier.dart';
 
 /// Menu item model describing dishes and beverages.
@@ -17,7 +18,7 @@ class MenuItem {
     return MenuItem(
       id: json['id'] as int? ?? 0,
       name: json['name'] as String? ?? '',
-      price: (json['price'] as num?)?.toDouble() ?? 0,
+      price: parseDouble(json['price']) ?? 0,
       categoryId: json['category_id'] as int?,
       description: json['description'] as String?,
       imageUrl: json['image_url'] as String?,

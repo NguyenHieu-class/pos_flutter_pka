@@ -1,3 +1,4 @@
+import '../utils/json_utils.dart';
 import 'item.dart';
 import 'modifier.dart';
 
@@ -26,8 +27,7 @@ class Order {
       tableCode: json['table_code'] as String?,
       status: json['status'] as String? ?? json['order_status'] as String?,
       customerName: json['customer_name'] as String?,
-      total: (json['total'] as num?)?.toDouble() ??
-          (json['grand_total'] as num?)?.toDouble(),
+      total: parseDouble(json['total']) ?? parseDouble(json['grand_total']),
       createdAt: json['created_at'] as String?
           ?? json['opened_at'] as String?,
       items: itemsJson is List
@@ -72,10 +72,9 @@ class OrderItem {
       name: json['item_name'] as String?
           ?? json['name'] as String?
           ?? '',
-      quantity: json['qty'] as int? ?? json['quantity'] as int? ?? 0,
-      unitPrice: (json['unit_price'] as num?)?.toDouble()
-          ?? (json['price'] as num?)?.toDouble(),
-      lineTotal: (json['line_total'] as num?)?.toDouble(),
+      quantity: parseInt(json['qty']) ?? parseInt(json['quantity']) ?? 0,
+      unitPrice: parseDouble(json['unit_price']) ?? parseDouble(json['price']),
+      lineTotal: parseDouble(json['line_total']),
       kitchenStatus: json['kitchen_status'] as String?
           ?? json['status'] as String?,
       note: json['note'] as String?,

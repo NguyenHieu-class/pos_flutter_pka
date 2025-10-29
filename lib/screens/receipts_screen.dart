@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../services/api_service.dart';
 import '../services/order_service.dart';
+import '../utils/json_utils.dart';
 
 /// Screen showing paid receipts for administrative review.
 class ReceiptsScreen extends StatefulWidget {
@@ -76,19 +77,20 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
                 children: [
                   Text(tableInfo.isEmpty ? 'Bàn: ---' : tableInfo),
                   Text('Tổng tiền: '
-                      '${NumberFormat.currency(locale: 'vi_VN', symbol: '₫').format((detail['total'] as num?)?.toDouble() ?? 0)}'),
+                      '${NumberFormat.currency(locale: 'vi_VN', symbol: '₫').format(parseDouble(detail['total']) ?? 0)}'),
                   const Divider(),
                   ...items.map(
                     (item) => ListTile(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
                       title: Text(item['item_name']?.toString() ?? item['name']?.toString() ?? ''),
-                      trailing: Text('x${item['qty'] ?? item['quantity'] ?? 0}'),
+                      trailing: Text(
+                          'x${parseInt(item['qty']) ?? parseInt(item['quantity']) ?? 0}'),
                       subtitle: Text(
                         NumberFormat.currency(locale: 'vi_VN', symbol: '₫').format(
-                          (item['line_total'] as num?)?.toDouble() ??
-                              (item['unit_price'] as num?)?.toDouble() ??
-                              (item['price'] as num?)?.toDouble() ??
+                          parseDouble(item['line_total']) ??
+                              parseDouble(item['unit_price']) ??
+                              parseDouble(item['price']) ??
                               0,
                         ),
                       ),
@@ -189,9 +191,10 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
                     ].join(' • ')),
                     trailing: Text(
                       NumberFormat.currency(locale: 'vi_VN', symbol: '₫')
-                          .format((receipt['total'] as num?)?.toDouble() ?? 0),
+                          .format(parseDouble(receipt['total']) ?? 0),
                     ),
-                    onTap: () => _openReceipt(receipt['id'] as int? ?? 0),
+                    onTap: () =>
+                        _openReceipt(parseInt(receipt['id']) ?? 0),
                   ),
                 );
               },
