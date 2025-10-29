@@ -8,7 +8,9 @@ import 'api_service.dart';
 
 /// Service managing authentication workflow and persisted session state.
 class AuthService {
-  AuthService._();
+  AuthService._() {
+    _api.onUnauthorized = _handleUnauthorized;
+  }
 
   static final AuthService instance = AuthService._();
 
@@ -22,7 +24,7 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(_tokenKey);
     final userJson = prefs.getString(_userKey);
-    if (token == null || userJson == null) {
+    if (token == null || token.isEmpty || userJson == null) {
       return null;
     }
     try {
@@ -38,10 +40,14 @@ class AuthService {
   }
 
   Future<User> login(String username, String password) async {
-    final result = await _api.post('/auth/login', {
-      'username': username,
-      'password': password,
-    });
+    final result = await _api.post(
+      '/auth/login',
+      {
+        'username': username,
+        'password': password,
+      },
+      auth: false,
+    );
 
     if (result is! Map<String, dynamic>) {
       throw ApiException('Phản hồi không hợp lệ từ máy chủ');
@@ -76,5 +82,11 @@ class AuthService {
   void _applySession(User user) {
     _api.updateToken(user.token);
     currentUser.value = user;
+  }
+
+  Future<void> _handleUnauthorized() async {
+    if (currentUser.value != null) {
+      await logout();
+    }
   }
 }
