@@ -314,9 +314,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           if (order == null) {
             return const Center(child: Text('Không tìm thấy order.'));
           }
-          final total = order.total ??
-              order.items.fold<double>(
-                  0, (sum, item) => sum + (item.price ?? 0) * item.quantity);
+          final total = order.total ?? order.items.fold<double>(
+              0,
+              (sum, item) =>
+                  sum + (item.lineTotal ?? (item.unitPrice ?? 0) * item.quantity));
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -341,7 +342,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             quantity: item.quantity,
                             note: item.note,
                             modifiers: item.modifiers,
-                            subtitle: item.status ?? '',
+                            subtitle: item.kitchenStatus ?? '',
                           );
                         },
                       ),

@@ -57,6 +57,12 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
       final detail = await _orderService.fetchReceiptDetail(id);
       if (!mounted) return;
       final items = detail['items'] as List<dynamic>? ?? [];
+      final tableInfo = [
+        if ((detail['area_code'] ?? detail['area']) != null)
+          'Khu ${detail['area_code'] ?? detail['area']}',
+        if ((detail['table_code'] ?? detail['table']) != null)
+          'Bàn ${detail['table_code'] ?? detail['table']}',
+      ].where((element) => element.trim().isNotEmpty).join(' • ');
       showDialog<void>(
         context: context,
         builder: (context) {
@@ -68,7 +74,7 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Bàn: ${detail['table_name'] ?? '---'}'),
+                  Text(tableInfo.isEmpty ? 'Bàn: ---' : tableInfo),
                   Text('Tổng tiền: '
                       '${NumberFormat.currency(locale: 'vi_VN', symbol: '₫').format((detail['total'] as num?)?.toDouble() ?? 0)}'),
                   const Divider(),
@@ -76,11 +82,15 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
                     (item) => ListTile(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
-                      title: Text(item['name'].toString()),
-                      trailing: Text('x${item['qty'] ?? item['quantity']}'),
+                      title: Text(item['item_name']?.toString() ?? item['name']?.toString() ?? ''),
+                      trailing: Text('x${item['qty'] ?? item['quantity'] ?? 0}'),
                       subtitle: Text(
-                        NumberFormat.currency(locale: 'vi_VN', symbol: '₫')
-                            .format((item['price'] as num?)?.toDouble() ?? 0),
+                        NumberFormat.currency(locale: 'vi_VN', symbol: '₫').format(
+                          (item['line_total'] as num?)?.toDouble() ??
+                              (item['unit_price'] as num?)?.toDouble() ??
+                              (item['price'] as num?)?.toDouble() ??
+                              0,
+                        ),
                       ),
                     ),
                   ),
@@ -157,15 +167,26 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
               padding: const EdgeInsets.all(16),
               itemBuilder: (context, index) {
                 final receipt = receipts[index];
+                final tableInfo = [
+                  if ((receipt['area_code'] ?? receipt['area']) != null)
+                    'Khu ${receipt['area_code'] ?? receipt['area']}',
+                  if ((receipt['table_code'] ?? receipt['table']) != null)
+                    'Bàn ${receipt['table_code'] ?? receipt['table']}',
+                ].where((element) => element.trim().isNotEmpty).join(' • ');
+                final paidAtRaw = receipt['paid_at']?.toString() ?? '';
+                final paidAt = DateTime.tryParse(paidAtRaw);
                 return Card(
                   child: ListTile(
                     leading: const Icon(Icons.receipt_long),
-                    title: Text('Hóa đơn #${receipt['id']}'),
-                    subtitle: Text(
-                      'Bàn: ${receipt['table_name'] ?? '---'}'
-                      'Thanh toán: '
-                      '${formatter.format(DateTime.tryParse(receipt['paid_at']?.toString() ?? '') ?? DateTime.now())}',
-                    ),
+                    title: Text(receipt['receipt_no'] != null
+                        ? 'Mã hoá đơn ${receipt['receipt_no']}'
+                        : 'Hóa đơn #${receipt['id']}'),
+                    subtitle: Text([
+                      if (tableInfo.isNotEmpty) tableInfo,
+                      if (receipt['cashier_name'] != null)
+                        'Thu ngân: ${receipt['cashier_name']}',
+                      if (paidAt != null) 'Thanh toán: ${formatter.format(paidAt)}',
+                    ].join(' • ')),
                     trailing: Text(
                       NumberFormat.currency(locale: 'vi_VN', symbol: '₫')
                           .format((receipt['total'] as num?)?.toDouble() ?? 0),

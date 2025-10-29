@@ -87,10 +87,16 @@ class _KitchenQueueScreenState extends State<KitchenQueueScreen> {
               itemCount: tickets.length,
               itemBuilder: (context, index) {
                 final ticket = tickets[index];
+                final subtitleParts = [
+                  if (ticket.tableLabel != null) ticket.tableLabel!,
+                  if (ticket.stationName != null)
+                    'Trạm: ${ticket.stationName}',
+                  if (ticket.orderedAt != null) ticket.orderedAt!,
+                ];
                 return OrderTile(
                   title: ticket.itemName,
                   quantity: ticket.quantity,
-                  subtitle: ticket.tableName ?? ticket.orderedAt ?? '',
+                  subtitle: subtitleParts.join(' • '),
                   note: ticket.note,
                   modifiers: ticket.modifiers,
                   trailing: FilledButton.tonal(

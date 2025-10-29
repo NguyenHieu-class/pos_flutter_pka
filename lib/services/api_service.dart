@@ -105,9 +105,16 @@ class ApiService {
 
   Future<dynamic> _handleResponse(http.Response response) async {
     debugPrint('Response ${response.statusCode}: ${response.body}');
-    final body = response.body.isEmpty ? null : jsonDecode(response.body);
+    final decoded = response.body.isEmpty ? null : jsonDecode(response.body);
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return body;
+      if (decoded is Map<String, dynamic>) {
+        final ok = decoded['ok'];
+        final data = decoded['data'];
+        if (ok == true && decoded.containsKey('data')) {
+          return data;
+        }
+      }
+      return decoded;
     }
     if (response.statusCode == 401) {
       if (onUnauthorized != null) {
@@ -118,9 +125,12 @@ class ApiService {
         }
       }
     }
-    final message = body is Map && body['message'] != null
-        ? body['message'] as String
-        : 'Request failed with status: ${response.statusCode}';
+    String message = 'Request failed with status: ${response.statusCode}';
+    if (decoded is Map<String, dynamic>) {
+      message = decoded['message'] as String? ??
+          decoded['error'] as String? ??
+          message;
+    }
     throw ApiException(message, statusCode: response.statusCode);
   }
 }

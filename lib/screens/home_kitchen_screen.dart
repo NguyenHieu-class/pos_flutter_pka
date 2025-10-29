@@ -113,12 +113,18 @@ class _HomeKitchenScreenState extends State<HomeKitchenScreen> {
               itemCount: tickets.length,
               itemBuilder: (context, index) {
                 final ticket = tickets[index];
+                final subtitleParts = [
+                  if (ticket.tableLabel != null) ticket.tableLabel!,
+                  if (ticket.kitchenStatus != null)
+                    'Trạng thái: ${ticket.kitchenStatus}',
+                  if (ticket.stationName != null)
+                    'Trạm: ${ticket.stationName}',
+                  if (ticket.orderedAt != null) ticket.orderedAt!,
+                ];
                 return OrderTile(
                   title: ticket.itemName,
                   quantity: ticket.quantity,
-                  subtitle: ticket.tableName != null
-                      ? 'Bàn ${ticket.tableName} • ${ticket.orderedAt ?? ''}'
-                      : ticket.orderedAt ?? '',
+                  subtitle: subtitleParts.join(' • '),
                   note: ticket.note,
                   modifiers: ticket.modifiers,
                   trailing: PopupMenuButton<String>(

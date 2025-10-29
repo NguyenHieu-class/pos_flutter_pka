@@ -23,7 +23,9 @@ class KitchenService {
     required int orderItemId,
     required String status,
   }) async {
-    await _api.put('/kitchen/items/$orderItemId/status', {'status': status});
+    await _api.put('/kitchen/items/$orderItemId/status', {
+      'kitchen_status': status,
+    });
   }
 }
 
@@ -33,37 +35,60 @@ class KitchenTicket {
     required this.orderItemId,
     required this.itemName,
     required this.quantity,
-    this.status,
-    this.tableName,
+    this.kitchenStatus,
+    this.tableLabel,
     this.note,
     this.orderedAt,
     this.modifiers = const <Modifier>[],
+    this.stationName,
   });
 
   factory KitchenTicket.fromJson(Map<String, dynamic> json) {
-    final modifiers = json['modifiers'];
+    final modifiersText = json['modifiers_text'] as String?;
+    final modifiers = <Modifier>[];
+    if (modifiersText != null && modifiersText.trim().isNotEmpty) {
+      final parts = modifiersText.split(';');
+      for (var i = 0; i < parts.length; i++) {
+        final text = parts[i].trim();
+        if (text.isEmpty) continue;
+        modifiers.add(Modifier(
+          id: i,
+          name: text,
+        ));
+      }
+    }
+
+    final areaCode = json['area_code'] as String?;
+    final tableCode = json['table_code'] as String?;
+    final labelParts = <String>[];
+    if (areaCode != null && areaCode.isNotEmpty) {
+      labelParts.add('Khu $areaCode');
+    }
+    if (tableCode != null && tableCode.isNotEmpty) {
+      labelParts.add('Bàn $tableCode');
+    }
+
     return KitchenTicket(
       orderItemId: json['order_item_id'] as int? ?? json['id'] as int? ?? 0,
       itemName: json['item_name'] as String? ?? json['name'] as String? ?? '',
       quantity: json['qty'] as int? ?? json['quantity'] as int? ?? 0,
-      status: json['status'] as String?,
-      tableName: json['table_name'] as String?,
+      kitchenStatus:
+          json['kitchen_status'] as String? ?? json['status'] as String?,
+      tableLabel: labelParts.isEmpty ? null : labelParts.join(' • '),
       note: json['note'] as String?,
       orderedAt: json['ordered_at'] as String? ?? json['created_at'] as String?,
-      modifiers: modifiers is List
-          ? modifiers
-              .map((m) => Modifier.fromJson(m as Map<String, dynamic>))
-              .toList()
-          : const <Modifier>[],
+      modifiers: modifiers,
+      stationName: json['station_name'] as String?,
     );
   }
 
   final int orderItemId;
   final String itemName;
   final int quantity;
-  final String? status;
-  final String? tableName;
+  final String? kitchenStatus;
+  final String? tableLabel;
   final String? note;
   final String? orderedAt;
   final List<Modifier> modifiers;
+  final String? stationName;
 }
