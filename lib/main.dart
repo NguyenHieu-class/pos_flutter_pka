@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'models/user.dart';
 import 'screens/home_admin_screen.dart';
@@ -10,6 +11,7 @@ import 'services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('vi_VN', null);
   Intl.defaultLocale = 'vi_VN';
   runApp(const POSApp());
 }
