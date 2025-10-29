@@ -155,8 +155,7 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
                           leading: const Icon(Icons.receipt_outlined),
                           title: Text('Mã hóa đơn #${receipt['id']}'),
                           subtitle: Text(
-                            'Bàn: ${receipt['table_name'] ?? receipt['table'] ?? 'N/A'}
-'
+                            'Bàn: ${receipt['table_name'] ?? receipt['table'] ?? 'N/A'}'
                             'Tổng tiền: '
                             '${NumberFormat.currency(locale: 'vi_VN', symbol: '₫').format((receipt['total'] as num?)?.toDouble() ?? 0)}',
                           ),

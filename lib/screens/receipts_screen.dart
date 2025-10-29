@@ -162,8 +162,7 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
                     leading: const Icon(Icons.receipt_long),
                     title: Text('Hóa đơn #${receipt['id']}'),
                     subtitle: Text(
-                      'Bàn: ${receipt['table_name'] ?? '---'}
-'
+                      'Bàn: ${receipt['table_name'] ?? '---'}'
                       'Thanh toán: '
                       '${formatter.format(DateTime.tryParse(receipt['paid_at']?.toString() ?? '') ?? DateTime.now())}',
                     ),
