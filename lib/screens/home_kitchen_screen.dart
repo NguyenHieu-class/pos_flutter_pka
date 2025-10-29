@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../services/kitchen_service.dart';
 import '../widgets/order_tile.dart';
+import 'login_screen.dart';
 
 /// Home screen dedicated to kitchen staff displaying queue of items to prepare.
 class HomeKitchenScreen extends StatefulWidget {
@@ -30,7 +31,10 @@ class _HomeKitchenScreenState extends State<HomeKitchenScreen> {
   void _logout() async {
     await AuthService.instance.logout();
     if (!mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   Future<void> _updateStatus(KitchenTicket ticket, String status) async {

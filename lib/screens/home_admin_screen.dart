@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../services/order_service.dart';
 import 'categories_screen.dart';
 import 'items_screen.dart';
+import 'login_screen.dart';
 import 'receipts_screen.dart';
 
 /// Home screen for the admin role with access to reports and management modules.
@@ -38,7 +39,10 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
   void _logout() async {
     await AuthService.instance.logout();
     if (!mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   @override

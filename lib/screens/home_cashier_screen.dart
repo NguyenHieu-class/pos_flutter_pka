@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import 'kitchen_queue_screen.dart';
+import 'login_screen.dart';
 import 'receipts_screen.dart';
 import 'table_select_screen.dart';
 
@@ -12,7 +13,10 @@ class HomeCashierScreen extends StatelessWidget {
   void _logout(BuildContext context) async {
     await AuthService.instance.logout();
     if (context.mounted) {
-      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
     }
   }
 
