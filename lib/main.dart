@@ -45,9 +45,6 @@ class _POSAppState extends State<POSApp> {
       title: 'PKA POS',
       debugShowCheckedModeBanner: false,
       theme: theme,
-      routes: {
-        '/': (context) => const LoginScreen(),
-      },
       home: FutureBuilder<User?>(
         future: _sessionFuture,
         builder: (context, snapshot) {
