@@ -9,6 +9,7 @@ import '../services/api_service.dart';
 import '../services/order_service.dart';
 import '../widgets/item_card.dart';
 import '../widgets/order_tile.dart';
+import '../utils/json_utils.dart';
 
 /// Screen showing order details and enabling cashiers to add dishes and checkout.
 class OrderDetailScreen extends StatefulWidget {
@@ -206,7 +207,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           return AlertDialog(
             title: const Text('Thanh toán thành công'),
             content: Text('Tổng tiền: '
-                '${NumberFormat.currency(locale: 'vi_VN', symbol: '₫').format((result['total'] as num?)?.toDouble() ?? 0)}'),
+                '${NumberFormat.currency(locale: 'vi_VN', symbol: '₫').format(parseDouble(result['total']) ?? 0)}'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),

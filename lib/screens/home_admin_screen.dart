@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../services/auth_service.dart';
 import '../services/order_service.dart';
+import '../utils/json_utils.dart';
 import 'categories_screen.dart';
 import 'items_screen.dart';
 import 'login_screen.dart';
@@ -136,9 +137,10 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
                   final receipts = snapshot.data ?? [];
                   final totalRevenue = receipts.fold<double>(
                     0,
-                    (sum, item) => sum +
-                        ((item['total'] as num?)?.toDouble() ??
-                            (item['grand_total'] as num?)?.toDouble() ??
+                    (sum, item) =>
+                        sum +
+                        (parseDouble(item['total']) ??
+                            parseDouble(item['grand_total']) ??
                             0),
                   );
                   return Column(
@@ -155,13 +157,13 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
                           leading: const Icon(Icons.receipt_outlined),
                           title: Text(receipt['receipt_no'] != null
                               ? 'Hoá đơn ${receipt['receipt_no']}'
-                              : 'Hoá đơn #${receipt['id']}'),
+                              : 'Hoá đơn #${parseInt(receipt['id']) ?? receipt['id']}'),
                           subtitle: Text([
                             if ((receipt['area_code'] ?? receipt['area']) != null)
                               'Khu ${receipt['area_code'] ?? receipt['area']}',
                             if ((receipt['table_code'] ?? receipt['table']) != null)
                               'Bàn ${receipt['table_code'] ?? receipt['table']}',
-                            'Tổng: ${NumberFormat.currency(locale: 'vi_VN', symbol: '₫').format((receipt['total'] as num?)?.toDouble() ?? 0)}',
+                            'Tổng: ${NumberFormat.currency(locale: 'vi_VN', symbol: '₫').format(parseDouble(receipt['total']) ?? 0)}',
                           ].join(' • ')),
                         ),
                       ),
