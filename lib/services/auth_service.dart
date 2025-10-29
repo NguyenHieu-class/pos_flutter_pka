@@ -53,12 +53,11 @@ class AuthService {
       throw ApiException('Phản hồi không hợp lệ từ máy chủ');
     }
 
-    final data = (result['data'] as Map<String, dynamic>?) ?? result;
-    final token = (data['token'] ?? data['access_token']) as String?;
+    final token = (result['token'] ?? result['access_token']) as String?;
     if (token == null) {
       throw ApiException('Không nhận được token xác thực');
     }
-    final userMap = (data['user'] as Map<String, dynamic>?) ?? data;
+    final userMap = (result['user'] as Map<String, dynamic>?) ?? result;
     final user = User.fromJson(userMap, token: token);
     await _persistSession(user);
     _applySession(user);

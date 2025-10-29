@@ -4,16 +4,24 @@ class DiningTable {
     required this.id,
     required this.name,
     this.areaId,
+    this.areaName,
     this.status,
     this.capacity,
   });
 
   factory DiningTable.fromJson(Map<String, dynamic> json) {
+    final name = json['name'] as String?;
+    final code = json['code']?.toString();
+    final number = json['number']?.toString();
+    final fallbackName = number != null
+        ? 'Bàn $number'
+        : 'Bàn ${json['id'] ?? ''}';
     return DiningTable(
       id: json['id'] as int? ?? 0,
-      name: json['name'] as String? ?? '',
+      name: name ?? code ?? fallbackName,
       areaId: json['area_id'] as int?,
-      status: json['status'] as String?,
+      areaName: json['area_name'] as String?,
+      status: json['status'] as String? ?? json['table_status'] as String?,
       capacity: json['capacity'] as int?,
     );
   }
@@ -21,6 +29,7 @@ class DiningTable {
   final int id;
   final String name;
   final int? areaId;
+  final String? areaName;
   final String? status;
   final int? capacity;
 }

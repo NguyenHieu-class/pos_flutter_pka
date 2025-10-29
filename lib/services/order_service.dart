@@ -20,12 +20,6 @@ class OrderService {
     if (response is List) {
       return response.cast<Map<String, dynamic>>();
     }
-    if (response is Map<String, dynamic>) {
-      final data = response['data'];
-      if (data is List) {
-        return data.cast<Map<String, dynamic>>();
-      }
-    }
     throw ApiException('Không lấy được danh sách khu vực');
   }
 
@@ -34,17 +28,8 @@ class OrderService {
       'area_id': areaId.toString(),
       if (status != null) 'status': status,
     });
-    List<dynamic>? list;
     if (response is List) {
-      list = response;
-    } else if (response is Map<String, dynamic>) {
-      final data = response['data'];
-      if (data is List) {
-        list = data;
-      }
-    }
-    if (list != null) {
-      return list
+      return response
           .map((item) => DiningTable.fromJson(item as Map<String, dynamic>))
           .toList();
     }
@@ -58,8 +43,17 @@ class OrderService {
         'customer_name': customerName,
     });
     if (response is Map<String, dynamic>) {
-      final data = (response['data'] as Map<String, dynamic>?) ?? response;
-      return Order.fromJson(data);
+      final orderId = response['order_id'] as int?;
+      if (orderId == null) {
+        throw ApiException('Không nhận được mã order mới');
+      }
+      return Order(
+        id: orderId,
+        tableId: tableId,
+        tableName: response['table_name'] as String?,
+        status: 'open',
+        customerName: customerName,
+      );
     }
     throw ApiException('Không thể tạo order mới');
   }
@@ -89,9 +83,22 @@ class OrderService {
   Future<List<Modifier>> fetchItemModifiers(int itemId) async {
     final response = await _api.get('/items/$itemId/modifiers');
     if (response is List) {
-      return response
-          .map((item) => Modifier.fromJson(item as Map<String, dynamic>))
-          .toList();
+      final modifiers = <Modifier>[];
+      for (final group in response) {
+        if (group is! Map<String, dynamic>) continue;
+        final options = group['options'];
+        if (options is! List) continue;
+        for (final option in options) {
+          if (option is Map<String, dynamic>) {
+            modifiers.add(Modifier.fromJson({
+              ...option,
+              'group_id': group['group_id'],
+              'group_name': group['name'],
+            }));
+          }
+        }
+      }
+      return modifiers;
     }
     throw ApiException('Không lấy được topping');
   }
@@ -99,8 +106,7 @@ class OrderService {
   Future<Order> fetchOrderDetail(int orderId) async {
     final response = await _api.get('/orders/$orderId');
     if (response is Map<String, dynamic>) {
-      final data = (response['data'] as Map<String, dynamic>?) ?? response;
-      return Order.fromJson(data);
+      return Order.fromJson(response);
     }
     throw ApiException('Không lấy được chi tiết order');
   }
@@ -123,7 +129,7 @@ class OrderService {
   Future<Map<String, dynamic>> checkoutOrder(int orderId) async {
     final response = await _api.post('/orders/$orderId/checkout', {});
     if (response is Map<String, dynamic>) {
-      return (response['data'] as Map<String, dynamic>?) ?? response;
+      return response['receipt'] as Map<String, dynamic>? ?? response;
     }
     throw ApiException('Không thể thanh toán hóa đơn');
   }
@@ -141,9 +147,9 @@ class OrderService {
       'page_size': pageSize.toString(),
     });
     if (response is Map<String, dynamic>) {
-      final list = response['data'] ?? response['items'] ?? response['results'];
-      if (list is List) {
-        return list.cast<Map<String, dynamic>>();
+      final rows = response['rows'];
+      if (rows is List) {
+        return rows.cast<Map<String, dynamic>>();
       }
     } else if (response is List) {
       return response.cast<Map<String, dynamic>>();
@@ -154,7 +160,7 @@ class OrderService {
   Future<Map<String, dynamic>> fetchReceiptDetail(int receiptId) async {
     final response = await _api.get('/admin/receipts/$receiptId');
     if (response is Map<String, dynamic>) {
-      return (response['data'] as Map<String, dynamic>?) ?? response;
+      return response;
     }
     throw ApiException('Không lấy được chi tiết hóa đơn');
   }

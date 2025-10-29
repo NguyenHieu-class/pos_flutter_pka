@@ -7,6 +7,7 @@ class Order {
     required this.id,
     required this.tableId,
     this.tableName,
+    this.tableCode,
     this.status,
     this.customerName,
     this.total,
@@ -19,11 +20,16 @@ class Order {
     return Order(
       id: json['id'] as int? ?? 0,
       tableId: json['table_id'] as int? ?? 0,
-      tableName: json['table_name'] as String?,
-      status: json['status'] as String?,
+      tableName: json['table_name'] as String?
+          ?? json['table_code'] as String?
+          ?? json['table'] as String?,
+      tableCode: json['table_code'] as String?,
+      status: json['status'] as String? ?? json['order_status'] as String?,
       customerName: json['customer_name'] as String?,
-      total: (json['total'] as num?)?.toDouble(),
-      createdAt: json['created_at'] as String?,
+      total: (json['total'] as num?)?.toDouble() ??
+          (json['grand_total'] as num?)?.toDouble(),
+      createdAt: json['created_at'] as String?
+          ?? json['opened_at'] as String?,
       items: itemsJson is List
           ? itemsJson
               .map((item) => OrderItem.fromJson(item as Map<String, dynamic>))
@@ -35,6 +41,7 @@ class Order {
   final int id;
   final int tableId;
   final String? tableName;
+  final String? tableCode;
   final String? status;
   final String? customerName;
   final double? total;
@@ -49,8 +56,9 @@ class OrderItem {
     required this.itemId,
     required this.name,
     required this.quantity,
-    this.price,
-    this.status,
+    this.unitPrice,
+    this.lineTotal,
+    this.kitchenStatus,
     this.note,
     this.modifiers = const <Modifier>[],
     this.preparedAt,
@@ -61,17 +69,23 @@ class OrderItem {
     return OrderItem(
       id: json['id'] as int? ?? 0,
       itemId: json['item_id'] as int? ?? 0,
-      name: json['name'] as String? ?? '',
+      name: json['item_name'] as String?
+          ?? json['name'] as String?
+          ?? '',
       quantity: json['qty'] as int? ?? json['quantity'] as int? ?? 0,
-      price: (json['price'] as num?)?.toDouble(),
-      status: json['status'] as String?,
+      unitPrice: (json['unit_price'] as num?)?.toDouble()
+          ?? (json['price'] as num?)?.toDouble(),
+      lineTotal: (json['line_total'] as num?)?.toDouble(),
+      kitchenStatus: json['kitchen_status'] as String?
+          ?? json['status'] as String?,
       note: json['note'] as String?,
       modifiers: modifiersJson is List
           ? modifiersJson
               .map((m) => Modifier.fromJson(m as Map<String, dynamic>))
               .toList()
           : const <Modifier>[],
-      preparedAt: json['prepared_at'] as String?,
+      preparedAt: json['prepared_at'] as String?
+          ?? json['updated_at'] as String?,
     );
   }
 
@@ -79,8 +93,9 @@ class OrderItem {
   final int itemId;
   final String name;
   final int quantity;
-  final double? price;
-  final String? status;
+  final double? unitPrice;
+  final double? lineTotal;
+  final String? kitchenStatus;
   final String? note;
   final List<Modifier> modifiers;
   final String? preparedAt;
