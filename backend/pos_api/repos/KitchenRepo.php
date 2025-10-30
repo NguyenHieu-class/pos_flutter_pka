@@ -12,9 +12,13 @@ class KitchenRepo {
   }
 
   private static function list(array $filters, bool $history) {
+    $cancelColumn = self::hasKitchenCancelReasonColumn()
+      ? 'oi.kitchen_cancel_reason'
+      : 'NULL';
+
     $sql = "SELECT oi.id order_item_id, oi.order_id, dt.code table_code, dt.name table_name,
                    a.code area_code, a.name area_name, oi.item_name, oi.qty, oi.kitchen_status,
-                   oi.note, oi.kitchen_cancel_reason, oi.created_at, oi.updated_at,
+                   oi.note, $cancelColumn kitchen_cancel_reason, oi.created_at, oi.updated_at,
                    ks.id station_id, ks.name station_name, c.id category_id, c.name category_name
             FROM order_items oi
             JOIN orders o ON o.id=oi.order_id";
@@ -82,10 +86,26 @@ class KitchenRepo {
   }
 
   public static function setItemStatus(int $orderItemId, string $status, ?string $reason = null) {
-    $sql = "UPDATE order_items SET kitchen_status=?, kitchen_cancel_reason=?, updated_at=NOW() WHERE id=?";
+    $hasCancelColumn = self::hasKitchenCancelReasonColumn();
     if ($status !== 'cancelled') {
       $reason = null;
     }
-    pdo()->prepare($sql)->execute([$status, $reason, $orderItemId]);
+
+    if ($hasCancelColumn) {
+      $sql = "UPDATE order_items SET kitchen_status=?, kitchen_cancel_reason=?, updated_at=NOW() WHERE id=?";
+      pdo()->prepare($sql)->execute([$status, $reason, $orderItemId]);
+    } else {
+      $sql = "UPDATE order_items SET kitchen_status=?, updated_at=NOW() WHERE id=?";
+      pdo()->prepare($sql)->execute([$status, $orderItemId]);
+    }
+  }
+
+  private static function hasKitchenCancelReasonColumn(): bool {
+    static $cached;
+    if ($cached === null) {
+      $stmt = pdo()->query("SHOW COLUMNS FROM order_items LIKE 'kitchen_cancel_reason'");
+      $cached = $stmt !== false && $stmt->fetch() !== false;
+    }
+    return $cached;
   }
 }
