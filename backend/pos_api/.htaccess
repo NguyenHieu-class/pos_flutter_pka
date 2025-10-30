@@ -1,0 +1,15 @@
+# ================================
+# POS API .htaccess (Laravel-style rewrite)
+# ================================
+RewriteEngine On
+RewriteBase /pos_api/
+
+# Cho phép PATH_INFO cho PHP
+AcceptPathInfo On
+
+# Bỏ qua nếu là file hoặc thư mục thật
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Đẩy tất cả /v1/... vào index.php
+RewriteRule ^v1/.* index.php [L,QSA]
