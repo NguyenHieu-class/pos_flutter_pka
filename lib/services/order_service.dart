@@ -68,10 +68,20 @@ class OrderService {
     throw ApiException('Không lấy được danh mục');
   }
 
-  Future<List<MenuItem>> fetchItems({int? categoryId}) async {
-    final response = await _api.get('/items', query: {
-      if (categoryId != null) 'category_id': categoryId.toString(),
-    });
+  Future<List<MenuItem>> fetchItems({
+    int? categoryId,
+    bool? enabled = true,
+    String? keyword,
+  }) async {
+    final query = <String, String>{};
+    if (categoryId != null) query['category_id'] = categoryId.toString();
+    if (keyword != null && keyword.isNotEmpty) query['q'] = keyword;
+    if (enabled == null) {
+      query['enabled'] = 'all';
+    } else {
+      query['enabled'] = enabled ? '1' : '0';
+    }
+    final response = await _api.get('/items', query: query);
     if (response is List) {
       return response
           .map((item) => MenuItem.fromJson(item as Map<String, dynamic>))
@@ -101,6 +111,104 @@ class OrderService {
       return modifiers;
     }
     throw ApiException('Không lấy được topping');
+  }
+
+  Future<int> createCategory({required String name, int? sort}) async {
+    final response = await _api.post('/categories', {
+      'name': name,
+      if (sort != null) 'sort': sort,
+    });
+    if (response is Map<String, dynamic>) {
+      final id = response['id'];
+      if (id is int) return id;
+      if (id is String) {
+        final parsed = int.tryParse(id);
+        if (parsed != null) return parsed;
+      }
+    }
+    throw ApiException('Không thể tạo danh mục');
+  }
+
+  Future<void> updateCategory({
+    required int id,
+    required String name,
+    int? sort,
+  }) async {
+    await _api.put('/categories/$id', {
+      'name': name,
+      if (sort != null) 'sort': sort,
+    });
+  }
+
+  Future<void> deleteCategory(int id) async {
+    await _api.delete('/categories/$id');
+  }
+
+  Future<int> createItem({
+    required String name,
+    required double price,
+    required int categoryId,
+    String? description,
+    String? sku,
+    double? taxRate,
+    bool enabled = true,
+    int? stationId,
+  }) async {
+    final response = await _api.post('/items', {
+      'name': name,
+      'price': price,
+      'category_id': categoryId,
+      if (description != null && description.isNotEmpty) 'description': description,
+      if (sku != null && sku.isNotEmpty) 'sku': sku,
+      'tax_rate': taxRate ?? 0,
+      'enabled': enabled ? 1 : 0,
+      if (stationId != null) 'station_id': stationId,
+    });
+    if (response is Map<String, dynamic>) {
+      final id = response['id'];
+      if (id is int) return id;
+      if (id is String) {
+        final parsed = int.tryParse(id);
+        if (parsed != null) return parsed;
+      }
+    }
+    throw ApiException('Không thể tạo món ăn');
+  }
+
+  Future<void> updateItem({
+    required int id,
+    required String name,
+    required double price,
+    required int categoryId,
+    String? description,
+    String? sku,
+    double? taxRate,
+    bool enabled = true,
+    int? stationId,
+  }) async {
+    await _api.put('/items/$id', {
+      'name': name,
+      'price': price,
+      'category_id': categoryId,
+      if (description != null)
+        'description': description.isEmpty ? null : description,
+      if (sku != null) 'sku': sku.isEmpty ? null : sku,
+      'tax_rate': taxRate ?? 0,
+      'enabled': enabled ? 1 : 0,
+      if (stationId != null) 'station_id': stationId,
+    });
+  }
+
+  Future<void> deleteItem(int id) async {
+    await _api.delete('/items/$id');
+  }
+
+  Future<MenuItem> fetchItemDetail(int id) async {
+    final response = await _api.get('/items/$id');
+    if (response is Map<String, dynamic>) {
+      return MenuItem.fromJson(response);
+    }
+    throw ApiException('Không lấy được chi tiết món ăn');
   }
 
   Future<Order> fetchOrderDetail(int orderId) async {

@@ -13,6 +13,7 @@ require_once __DIR__ . '/controllers/TablesController.php';
 require_once __DIR__ . '/controllers/OrdersController.php';
 require_once __DIR__ . '/controllers/KitchenController.php';
 require_once __DIR__ . '/controllers/AdminReceiptsController.php';
+require_once __DIR__ . '/controllers/AdminUsersController.php';
 require_once __DIR__ . '/controllers/UploadsController.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -81,6 +82,14 @@ try {
   // ========== RECEIPTS (ADMIN) ==========
   if ($path === '/v1/admin/receipts' && $method==='GET') return AdminReceiptsController::list();
   if (preg_match('#^/v1/admin/receipts/(\\d+)$#',$path,$m) && $method==='GET') return AdminReceiptsController::get((int)$m[1]);
+
+  // ========== USERS (ADMIN) ==========
+  if ($path === '/v1/admin/users' && $method==='GET') return AdminUsersController::list();
+  if ($path === '/v1/admin/users' && $method==='POST') return AdminUsersController::create();
+  if (preg_match('#^/v1/admin/users/(\\d+)$#',$path,$m)) {
+    if ($method==='PUT') return AdminUsersController::update((int)$m[1]);
+    if ($method==='DELETE') return AdminUsersController::delete((int)$m[1]);
+  }
 
   // ========== UPLOADS ==========
   if ($path === '/v1/uploads/items'      && $method==='POST') return UploadsController::uploadItem();

@@ -8,7 +8,15 @@ require_once __DIR__ . '/../repos/MediaRepo.php';
 
 class ItemsController {
   public static function list() {
-    $enabled = isset($_GET['enabled']) ? (int)$_GET['enabled'] : 1;
+    $enabledParam = $_GET['enabled'] ?? null;
+    $enabled = 1;
+    if ($enabledParam === null) {
+      $enabled = 1;
+    } elseif ($enabledParam === 'all') {
+      $enabled = null;
+    } else {
+      $enabled = (int)$enabledParam;
+    }
     $rows = ItemsRepo::list(query('category_id'), query('q'), $enabled);
     $ids = array_column($rows, 'id');
     $primaryMap = primary_media_map('item', $ids);
