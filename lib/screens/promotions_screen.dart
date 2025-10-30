@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../models/promotion.dart';
+import '../services/api_service.dart';
+import '../services/promotion_service.dart';
 
 /// Admin screen to manage discounts and promotions at runtime.
 class PromotionsScreen extends StatefulWidget {
@@ -12,241 +14,703 @@ class PromotionsScreen extends StatefulWidget {
 }
 
 class _PromotionsScreenState extends State<PromotionsScreen> {
+  final PromotionService _promotionService = PromotionService.instance;
   final List<Promotion> _promotions = [];
   final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
+  final NumberFormat _currencyFormat =
+      NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
+
+  bool _isLoading = false;
+  bool _isSaving = false;
+  int? _togglingId;
+  int? _deletingId;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _seedSamplePromotions();
+    _refreshPromotions(showSnackbarOnError: false);
   }
 
-  void _seedSamplePromotions() {
-    _promotions.addAll([
-      Promotion(
-        id: 1,
-        name: 'Giảm 10% hóa đơn',
-        type: PromotionType.percentage,
-        value: 10,
-        startDate: DateTime.now().subtract(const Duration(days: 7)),
-        endDate: DateTime.now().add(const Duration(days: 14)),
-        description: 'Áp dụng cho tất cả món ăn trong tuần lễ vàng.',
-        usageLimit: 100,
-        usageCount: 48,
-      ),
-      Promotion(
-        id: 2,
-        name: 'Tặng 30.000đ',
-        type: PromotionType.fixed,
-        value: 30000,
-        startDate: DateTime.now().subtract(const Duration(days: 30)),
-        endDate: DateTime.now().add(const Duration(days: 2)),
-        description: 'Khuyến mãi cho đơn trên 300.000đ.',
-        usageCount: 91,
-        usageLimit: 120,
-      ),
-    ]);
+  Future<void> _refreshPromotions({bool showSnackbarOnError = true}) async {
+    setState(() {
+      _isLoading = true;
+      if (_promotions.isEmpty) {
+        _errorMessage = null;
+      }
+    });
+    try {
+      final promotions = await _promotionService.fetchPromotions();
+      if (!mounted) return;
+      setState(() {
+        _promotions
+          ..clear()
+          ..addAll(promotions);
+        _errorMessage = null;
+      });
+    } catch (error) {
+      final message = _errorMessageFrom(error);
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = message;
+      });
+      if (showSnackbarOnError) {
+        _showErrorSnackBar(message);
+      }
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _showPromotionDialog({Promotion? promotion}) async {
-    final isEditing = promotion != null;
-    final nameController = TextEditingController(text: promotion?.name ?? '');
-    final descriptionController =
-        TextEditingController(text: promotion?.description ?? '');
-    final valueController =
-        TextEditingController(text: promotion?.value.toString() ?? '');
-    final usageLimitController = TextEditingController(
-      text: promotion?.usageLimit != null ? promotion!.usageLimit.toString() : '',
-    );
-    PromotionType selectedType = promotion?.type ?? PromotionType.percentage;
-    DateTime startDate = promotion?.startDate ?? DateTime.now();
-    DateTime endDate = promotion?.endDate ?? DateTime.now().add(const Duration(days: 7));
-    final formKey = GlobalKey<FormState>();
+    final data = await _openPromotionForm(promotion: promotion);
+    if (data == null) return;
+    if (promotion == null) {
+      await _createPromotion(data);
+    } else {
+      await _updatePromotion(promotion, data);
+    }
+  }
 
-    final shouldSave = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: Text(isEditing ? 'Cập nhật khuyến mãi' : 'Thêm khuyến mãi'),
-              content: Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        controller: nameController,
-                        decoration: const InputDecoration(labelText: 'Tên chương trình'),
-                        autofocus: true,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Vui lòng nhập tên chương trình';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<PromotionType>(
-                        value: selectedType,
-                        items: PromotionType.values
-                            .map(
-                              (type) => DropdownMenuItem(
-                                value: type,
-                                child: Text(type.label),
-                              ),
-                            )
-                            .toList(),
-                        decoration: const InputDecoration(labelText: 'Loại giảm giá'),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setStateDialog(() => selectedType = value);
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: valueController,
-                        decoration: InputDecoration(
-                          labelText: selectedType == PromotionType.percentage
-                              ? 'Phần trăm (%)'
-                              : 'Giá trị (₫)',
-                        ),
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
-                        validator: (value) {
-                          final parsed = double.tryParse(value ?? '');
-                          if (parsed == null || parsed <= 0) {
-                            return 'Giá trị không hợp lệ';
-                          }
-                          if (selectedType == PromotionType.percentage && parsed > 100) {
-                            return 'Phần trăm phải nhỏ hơn hoặc bằng 100';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: descriptionController,
-                        decoration: const InputDecoration(
-                          labelText: 'Mô tả',
-                        ),
-                        maxLines: 2,
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _DatePickerField(
-                              label: 'Bắt đầu',
-                              date: startDate,
-                              onPick: (picked) => setStateDialog(() {
-                                if (picked != null) startDate = picked;
-                              }),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _DatePickerField(
-                              label: 'Kết thúc',
-                              date: endDate,
-                              onPick: (picked) => setStateDialog(() {
-                                if (picked != null) endDate = picked;
-                              }),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: usageLimitController,
-                        decoration: const InputDecoration(
-                          labelText: 'Giới hạn lượt áp dụng',
-                          helperText: 'Để trống nếu không giới hạn',
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Hủy'),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    if (!formKey.currentState!.validate()) return;
-                    if (endDate.isBefore(startDate)) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Ngày kết thúc phải sau ngày bắt đầu.')),
-                      );
-                      return;
-                    }
-                    Navigator.pop(context, true);
-                  },
-                  child: const Text('Lưu'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    if (shouldSave == true) {
-      final value = double.tryParse(valueController.text.trim()) ?? 0;
-      final usageLimit = usageLimitController.text.trim().isEmpty
-          ? null
-          : int.tryParse(usageLimitController.text.trim());
+  Future<void> _createPromotion(_PromotionFormData data) async {
+    setState(() {
+      _isSaving = true;
+    });
+    try {
+      final created = await _promotionService.createPromotion(
+        name: data.name,
+        type: data.type,
+        value: data.value,
+        code: data.code,
+        minSubtotal: data.minSubtotal,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        active: data.active,
+      );
+      if (!mounted) return;
       setState(() {
-        if (isEditing) {
-          final index = _promotions.indexWhere((item) => item.id == promotion!.id);
-          if (index != -1) {
-            _promotions[index] = promotion!.copyWith(
-              name: nameController.text.trim(),
-              description: descriptionController.text.trim().isEmpty
-                  ? null
-                  : descriptionController.text.trim(),
-              type: selectedType,
-              value: value,
-              startDate: startDate,
-              endDate: endDate,
-              usageLimit: usageLimit,
-            );
-          }
-        } else {
-          final nextId =
-              (_promotions.map((p) => p.id).fold<int>(0, (prev, id) => id > prev ? id : prev)) + 1;
-          _promotions.add(
-            Promotion(
-              id: nextId,
-              name: nameController.text.trim(),
-              description: descriptionController.text.trim().isEmpty
-                  ? null
-                  : descriptionController.text.trim(),
-              type: selectedType,
-              value: value,
-              startDate: startDate,
-              endDate: endDate,
-              usageLimit: usageLimit,
-            ),
-          );
-        }
+        _promotions.insert(0, created);
+        _errorMessage = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã tạo khuyến mãi thành công.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      _showErrorSnackBar(_errorMessageFrom(error));
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
       });
     }
   }
 
-  void _togglePromotion(Promotion promotion, bool value) {
-    final index = _promotions.indexWhere((item) => item.id == promotion.id);
-    if (index != -1) {
+  Future<void> _updatePromotion(
+      Promotion original, _PromotionFormData data) async {
+    setState(() {
+      _isSaving = true;
+    });
+    try {
+      final updated = await _promotionService.updatePromotion(
+        id: original.id,
+        name: data.name,
+        type: data.type,
+        value: data.value,
+        code: data.code,
+        minSubtotal: data.minSubtotal,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        active: data.active,
+      );
+      if (!mounted) return;
       setState(() {
-        _promotions[index] = promotion.copyWith(active: value);
+        final index = _promotions.indexWhere((item) => item.id == original.id);
+        if (index != -1) {
+          _promotions[index] = updated;
+        }
+        _errorMessage = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã cập nhật khuyến mãi.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      _showErrorSnackBar(_errorMessageFrom(error));
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
       });
     }
+  }
+
+  Future<void> _togglePromotion(Promotion promotion, bool value) async {
+    setState(() {
+      _togglingId = promotion.id;
+    });
+    try {
+      final updated = await _promotionService.updatePromotion(
+        id: promotion.id,
+        name: promotion.name,
+        type: promotion.type,
+        value: promotion.value,
+        code: promotion.code,
+        minSubtotal: promotion.minSubtotal,
+        startDate: promotion.startDate,
+        endDate: promotion.endDate,
+        active: value,
+      );
+      if (!mounted) return;
+      setState(() {
+        final index = _promotions.indexWhere((item) => item.id == promotion.id);
+        if (index != -1) {
+          _promotions[index] = updated;
+        }
+      });
+    } catch (error) {
+      if (!mounted) return;
+      _showErrorSnackBar(_errorMessageFrom(error));
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _togglingId = null;
+      });
+    }
+  }
+
+  Future<void> _confirmDeletePromotion(Promotion promotion) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Xóa khuyến mãi'),
+          content: Text(
+            'Bạn có chắc muốn xóa chương trình "${promotion.name}"?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Hủy'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+              child: const Text('Xóa'),
+            ),
+          ],
+        );
+      },
+    );
+    if (shouldDelete != true) return;
+
+    setState(() {
+      _deletingId = promotion.id;
+    });
+    try {
+      await _promotionService.deletePromotion(promotion.id);
+      if (!mounted) return;
+      setState(() {
+        _promotions.removeWhere((item) => item.id == promotion.id);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã xóa khuyến mãi.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      _showErrorSnackBar(_errorMessageFrom(error));
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _deletingId = null;
+      });
+    }
+  }
+
+  Future<_PromotionFormData?> _openPromotionForm({Promotion? promotion}) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final formKey = GlobalKey<FormState>();
+    final codeController = TextEditingController(text: promotion?.code ?? '');
+    final nameController = TextEditingController(text: promotion?.name ?? '');
+    final valueController = TextEditingController(
+      text: promotion != null ? promotion.value.toString() : '',
+    );
+    final minSubtotalController = TextEditingController(
+      text: promotion != null &&
+              promotion.minSubtotal != null &&
+              promotion.minSubtotal! > 0
+          ? promotion.minSubtotal!.toString()
+          : '',
+    );
+    PromotionType selectedType = promotion?.type ?? PromotionType.percentage;
+    bool isActive = promotion?.active ?? true;
+    DateTime? startDate = promotion?.startDate;
+    DateTime? endDate = promotion?.endDate;
+    bool noTimeLimit = startDate == null && endDate == null;
+
+    void ensureDateDefaults() {
+      if (!noTimeLimit) {
+        startDate ??= DateUtils.dateOnly(DateTime.now());
+        endDate ??= DateUtils.dateOnly(
+          (startDate ?? DateTime.now()).add(const Duration(days: 7)),
+        );
+      }
+    }
+
+    ensureDateDefaults();
+
+    try {
+      final result = await showDialog<_PromotionFormData>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setStateDialog) {
+              return AlertDialog(
+                title: Text(
+                  promotion == null
+                      ? 'Thêm khuyến mãi'
+                      : 'Cập nhật khuyến mãi',
+                ),
+                content: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextFormField(
+                          controller: codeController,
+                          decoration: const InputDecoration(
+                            labelText: 'Mã chương trình (tuỳ chọn)',
+                          ),
+                          textCapitalization: TextCapitalization.characters,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: nameController,
+                          decoration:
+                              const InputDecoration(labelText: 'Tên chương trình'),
+                          autofocus: true,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Vui lòng nhập tên chương trình';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<PromotionType>(
+                          value: selectedType,
+                          items: PromotionType.values
+                              .map(
+                                (type) => DropdownMenuItem(
+                                  value: type,
+                                  child: Text(type.label),
+                                ),
+                              )
+                              .toList(),
+                          decoration:
+                              const InputDecoration(labelText: 'Loại giảm giá'),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setStateDialog(() => selectedType = value);
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: valueController,
+                          decoration: InputDecoration(
+                            labelText: selectedType == PromotionType.percentage
+                                ? 'Phần trăm (%)'
+                                : 'Giá trị (₫)',
+                          ),
+                          keyboardType:
+                              const TextInputType.numberWithOptions(decimal: true),
+                          validator: (value) {
+                            final parsed = double.tryParse(value ?? '');
+                            if (parsed == null || parsed <= 0) {
+                              return 'Giá trị không hợp lệ';
+                            }
+                            if (selectedType == PromotionType.percentage &&
+                                parsed > 100) {
+                              return 'Phần trăm phải nhỏ hơn hoặc bằng 100';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: minSubtotalController,
+                          decoration: const InputDecoration(
+                            labelText: 'Đơn hàng tối thiểu (₫)',
+                            helperText: 'Để trống nếu không giới hạn',
+                          ),
+                          keyboardType:
+                              const TextInputType.numberWithOptions(decimal: true),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return null;
+                            }
+                            final normalized = value.replaceAll(',', '.');
+                            final parsed = double.tryParse(normalized);
+                            if (parsed == null || parsed < 0) {
+                              return 'Giá trị không hợp lệ';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        SwitchListTile.adaptive(
+                          value: noTimeLimit,
+                          onChanged: (value) {
+                            setStateDialog(() {
+                              noTimeLimit = value;
+                              if (value) {
+                                startDate = null;
+                                endDate = null;
+                              } else {
+                                startDate = DateUtils.dateOnly(DateTime.now());
+                                endDate = DateUtils.dateOnly(
+                                  DateTime.now().add(const Duration(days: 7)),
+                                );
+                              }
+                            });
+                          },
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Không giới hạn thời gian'),
+                        ),
+                        if (!noTimeLimit) ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _DatePickerField(
+                                  label: 'Bắt đầu',
+                                  date: startDate,
+                                  onPick: (picked) => setStateDialog(() {
+                                    if (picked != null) {
+                                      startDate = DateUtils.dateOnly(picked);
+                                      if (endDate != null &&
+                                          endDate!.isBefore(startDate!)) {
+                                        endDate = startDate;
+                                      }
+                                    }
+                                  }),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _DatePickerField(
+                                  label: 'Kết thúc',
+                                  date: endDate,
+                                  onPick: (picked) => setStateDialog(() {
+                                    if (picked != null) {
+                                      endDate = DateUtils.dateOnly(picked);
+                                    }
+                                  }),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        SwitchListTile.adaptive(
+                          value: isActive,
+                          onChanged: (value) =>
+                              setStateDialog(() => isActive = value),
+                          title: const Text('Trạng thái'),
+                          subtitle:
+                              Text(isActive ? 'Đang bật' : 'Đã tắt'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Hủy'),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      if (!formKey.currentState!.validate()) return;
+                      if (!noTimeLimit &&
+                          startDate != null &&
+                          endDate != null &&
+                          endDate!.isBefore(startDate!)) {
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.'),
+                          ),
+                        );
+                        return;
+                      }
+                      final value =
+                          double.tryParse(valueController.text.trim()) ?? 0;
+                      final minSubtotalText =
+                          minSubtotalController.text.trim().replaceAll(',', '.');
+                      final minSubtotal = minSubtotalText.isEmpty
+                          ? null
+                          : double.tryParse(minSubtotalText);
+                      Navigator.pop(
+                        context,
+                        _PromotionFormData(
+                          code: codeController.text.trim().isEmpty
+                              ? null
+                              : codeController.text.trim(),
+                          name: nameController.text.trim(),
+                          type: selectedType,
+                          value: value,
+                          minSubtotal: minSubtotal,
+                          startDate: noTimeLimit
+                              ? null
+                              : DateUtils.dateOnly(startDate!),
+                          endDate: noTimeLimit
+                              ? null
+                              : DateUtils.dateOnly(endDate!),
+                          active: isActive,
+                        ),
+                      );
+                    },
+                    child: const Text('Lưu'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+      return result;
+    } finally {
+      codeController.dispose();
+      nameController.dispose();
+      valueController.dispose();
+      minSubtotalController.dispose();
+    }
+  }
+
+  Widget _buildContent() {
+    if (_isLoading && _promotions.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage != null && _promotions.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => _refreshPromotions(),
+                child: const Text('Thử lại'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_promotions.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _refreshPromotions,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(32),
+          children: const [
+            SizedBox(height: 120),
+            Center(child: Text('Chưa có chương trình khuyến mãi nào.')),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _refreshPromotions,
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemBuilder: (context, index) {
+          final promotion = _promotions[index];
+          final isToggling = _togglingId == promotion.id;
+          final isDeleting = _deletingId == promotion.id;
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              promotion.name,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            if ((promotion.code ?? '').isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Mã: ${promotion.code}',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      isToggling
+                          ? const SizedBox(
+                              width: 48,
+                              height: 32,
+                              child: Center(
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              ),
+                            )
+                          : Column(
+                              children: [
+                                Switch(
+                                  value: promotion.active,
+                                  onChanged: _isSaving
+                                          ? null
+                                          : (value) =>
+                                              _togglePromotion(promotion, value),
+                                ),
+                                Text(
+                                  promotion.active ? 'Đang bật' : 'Đã tắt',
+                                  style:
+                                      Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    children: [
+                      _InfoChip(
+                        icon: Icons.sell_outlined,
+                        label: _formatValueLabel(promotion),
+                      ),
+                      if (promotion.minSubtotal != null &&
+                          promotion.minSubtotal! > 0)
+                        _InfoChip(
+                          icon: Icons.shopping_bag_outlined,
+                          label:
+                              'ĐH tối thiểu: ${_currencyFormat.format(promotion.minSubtotal)}',
+                        ),
+                      if (promotion.startDate != null ||
+                          promotion.endDate != null)
+                        _InfoChip(
+                          icon: Icons.calendar_today_outlined,
+                          label: _formatDateRange(promotion),
+                        ),
+                    ],
+                  ),
+                  if (promotion.endDate != null &&
+                      promotion.endDate!.isBefore(DateTime.now())) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Chương trình đã hết hạn',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton.icon(
+                        onPressed: _isSaving
+                            ? null
+                            : () =>
+                                _showPromotionDialog(promotion: promotion),
+                        icon: const Icon(Icons.edit_outlined),
+                        label: const Text('Chỉnh sửa'),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        onPressed: (isDeleting || _isSaving)
+                            ? null
+                            : () => _confirmDeletePromotion(promotion),
+                        icon: isDeleting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.delete_outline),
+                        label: const Text('Xóa'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemCount: _promotions.length,
+      ),
+    );
+  }
+
+  String _formatValueLabel(Promotion promotion) {
+    if (promotion.type == PromotionType.percentage) {
+      final value = promotion.value;
+      final fraction = value.truncateToDouble() == value ? 0 : 1;
+      return '${value.toStringAsFixed(fraction)}%';
+    }
+    return _currencyFormat.format(promotion.value);
+  }
+
+  String _formatDateRange(Promotion promotion) {
+    final start = promotion.startDate;
+    final end = promotion.endDate;
+    if (start != null && end != null) {
+      return '${_dateFormat.format(start)} - ${_dateFormat.format(end)}';
+    }
+    if (start != null) {
+      return 'Từ ${_dateFormat.format(start)}';
+    }
+    if (end != null) {
+      return 'Đến ${_dateFormat.format(end)}';
+    }
+    return 'Không giới hạn';
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  String _errorMessageFrom(Object error) {
+    if (error is ApiException) {
+      return error.message;
+    }
+    return 'Đã xảy ra lỗi, vui lòng thử lại.';
   }
 
   @override
@@ -256,104 +720,41 @@ class _PromotionsScreenState extends State<PromotionsScreen> {
         title: const Text('Quản lý khuyến mãi'),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showPromotionDialog(),
+        onPressed: _isSaving ? null : () => _showPromotionDialog(),
         icon: const Icon(Icons.add),
         label: const Text('Thêm mới'),
       ),
-      body: _promotions.isEmpty
-          ? const Center(child: Text('Chưa có chương trình khuyến mãi nào.'))
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemBuilder: (context, index) {
-                final promotion = _promotions[index];
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    promotion.name,
-                                    style: Theme.of(context).textTheme.titleMedium,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    promotion.description ?? 'Không có mô tả',
-                                    style: Theme.of(context).textTheme.bodyMedium,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Column(
-                              children: [
-                                Switch(
-                                  value: promotion.active,
-                                  onChanged: (value) => _togglePromotion(promotion, value),
-                                ),
-                                Text(
-                                  promotion.active ? 'Đang bật' : 'Đã tắt',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 8,
-                          children: [
-                            _InfoChip(
-                              icon: Icons.sell_outlined,
-                              label: promotion.type == PromotionType.percentage
-                                  ? '${promotion.value.toStringAsFixed(0)}%'
-                                  : NumberFormat.currency(locale: 'vi_VN', symbol: '₫')
-                                      .format(promotion.value),
-                            ),
-                            _InfoChip(
-                              icon: Icons.calendar_today_outlined,
-                              label:
-                                  '${_dateFormat.format(promotion.startDate)} - ${_dateFormat.format(promotion.endDate)}',
-                            ),
-                            _InfoChip(
-                              icon: Icons.repeat_on_outlined,
-                              label: 'Đã dùng: ${promotion.usageCount}${promotion.usageLimit != null ? '/${promotion.usageLimit}' : ''}',
-                            ),
-                          ],
-                        ),
-                        if (promotion.endDate.isBefore(DateTime.now())) ...[
-                          const SizedBox(height: 12),
-                          Text(
-                            'Chương trình đã hết hạn',
-                            style: TextStyle(color: Theme.of(context).colorScheme.error),
-                          ),
-                        ],
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton.icon(
-                            onPressed: () => _showPromotionDialog(promotion: promotion),
-                            icon: const Icon(Icons.edit_outlined),
-                            label: const Text('Chỉnh sửa'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemCount: _promotions.length,
-            ),
+      body: Column(
+        children: [
+          if (_isLoading || _isSaving)
+            const LinearProgressIndicator(minHeight: 2),
+          Expanded(child: _buildContent()),
+        ],
+      ),
     );
   }
+}
+
+class _PromotionFormData {
+  const _PromotionFormData({
+    required this.name,
+    required this.type,
+    required this.value,
+    required this.active,
+    this.code,
+    this.minSubtotal,
+    this.startDate,
+    this.endDate,
+  });
+
+  final String? code;
+  final String name;
+  final PromotionType type;
+  final double value;
+  final double? minSubtotal;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final bool active;
 }
 
 class _DatePickerField extends StatelessWidget {
@@ -364,17 +765,19 @@ class _DatePickerField extends StatelessWidget {
   });
 
   final String label;
-  final DateTime date;
+  final DateTime? date;
   final ValueChanged<DateTime?> onPick;
 
   @override
   Widget build(BuildContext context) {
-    final formatted = DateFormat('dd/MM/yyyy').format(date);
+    final formatted =
+        date != null ? DateFormat('dd/MM/yyyy').format(date!) : 'Không đặt';
     return OutlinedButton(
       onPressed: () async {
+        final initialDate = date ?? DateTime.now();
         final picked = await showDatePicker(
           context: context,
-          initialDate: date,
+          initialDate: initialDate,
           firstDate: DateTime(2020),
           lastDate: DateTime(2100),
         );
