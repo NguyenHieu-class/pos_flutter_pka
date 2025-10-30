@@ -5,11 +5,15 @@ import '../services/auth_service.dart';
 import '../services/order_service.dart';
 import '../utils/json_utils.dart';
 import 'admin_users_screen.dart';
+import 'areas_screen.dart';
+import 'audit_logs_screen.dart';
 import 'categories_screen.dart';
 import 'items_screen.dart';
 import 'login_screen.dart';
+import 'promotions_screen.dart';
 import 'receipts_screen.dart';
-import 'areas_screen.dart';
+import 'reports_screen.dart';
+import 'system_settings_screen.dart';
 import 'tables_screen.dart';
 import 'toppings_screen.dart';
 
@@ -155,6 +159,50 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => const ReceiptsScreen(),
+                      ),
+                    ),
+                  ),
+                  _AdminActionCard(
+                    title: 'Khuyến mãi',
+                    icon: Icons.local_offer_outlined,
+                    color: colorScheme.primaryContainer,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PromotionsScreen(),
+                      ),
+                    ),
+                  ),
+                  _AdminActionCard(
+                    title: 'Báo cáo',
+                    icon: Icons.analytics_outlined,
+                    color: colorScheme.secondary,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ReportsScreen(),
+                      ),
+                    ),
+                  ),
+                  _AdminActionCard(
+                    title: 'Nhật ký',
+                    icon: Icons.monitor_heart_outlined,
+                    color: colorScheme.tertiary,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AuditLogsScreen(),
+                      ),
+                    ),
+                  ),
+                  _AdminActionCard(
+                    title: 'Cài đặt',
+                    icon: Icons.settings_applications_outlined,
+                    color: colorScheme.secondaryContainer,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SystemSettingsScreen(),
                       ),
                     ),
                   ),
