@@ -62,6 +62,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   bool _loadingDiscounts = false;
   double? _lastDiscountSubtotal;
   bool _cancellingOrder = false;
+  bool _applyingDiscountCode = false;
+  final TextEditingController _discountCodeController = TextEditingController();
   final NumberFormat _currencyFormat =
       NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
 
@@ -71,6 +73,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     _orderFuture = _orderService.fetchOrderDetail(widget.orderId);
     _menuFuture = _orderService.fetchItems();
     _loadCategories();
+  }
+
+  @override
+  void dispose() {
+    _discountCodeController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCategories() async {
@@ -700,15 +708,93 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
+  Future<void> _applyDiscountCode(double subtotal) async {
+    if (_applyingDiscountCode) return;
+    final rawCode = _discountCodeController.text.trim();
+    if (rawCode.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập mã giảm giá.')),
+      );
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _applyingDiscountCode = true;
+    });
+    final uppercaseCode = rawCode.toUpperCase();
+    try {
+      final discount =
+          await _orderService.findDiscountByCode(uppercaseCode, subtotal: subtotal);
+      if (!mounted) return;
+      if (discount == null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Không tìm thấy mã giảm giá "$uppercaseCode".')));
+        return;
+      }
+      if (discount.minSubtotal > subtotal + 0.00001) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Đơn hàng chưa đạt mức tối thiểu ${_currencyFormat.format(discount.minSubtotal)} để áp dụng mã.')));
+        return;
+      }
+      setState(() {
+        _selectedDiscount = discount;
+        final exists =
+            _availableDiscounts.any((existing) => existing.id == discount.id);
+        if (!exists) {
+          final updated = [..._availableDiscounts, discount];
+          updated.sort((a, b) => a.label.compareTo(b.label));
+          _availableDiscounts = updated;
+        }
+        _discountCodeController.text = discount.code ?? uppercaseCode;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Đã áp dụng mã ${discount.code ?? uppercaseCode}.')));
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể áp dụng mã giảm giá: $error')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _applyingDiscountCode = false;
+        });
+      } else {
+        _applyingDiscountCode = false;
+      }
+    }
+  }
+
   Future<void> _cancelOrder() async {
     if (_cancellingOrder) return;
+    final reasonController = TextEditingController();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('Huỷ order'),
-          content: const Text(
-              'Bạn có chắc chắn muốn huỷ order này? Tất cả món sẽ được đánh dấu huỷ.'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                  'Bạn có chắc chắn muốn huỷ order này? Tất cả món sẽ được đánh dấu huỷ.'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reasonController,
+                decoration: const InputDecoration(
+                  labelText: 'Lý do huỷ',
+                  hintText: 'Nhập lý do (tuỳ chọn)',
+                ),
+                maxLines: 2,
+                textInputAction: TextInputAction.done,
+              ),
+            ],
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -725,12 +811,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         );
       },
     );
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      reasonController.dispose();
+      return;
+    }
     setState(() {
       _cancellingOrder = true;
     });
+    final reason = reasonController.text.trim();
+    reasonController.dispose();
     try {
-      await _orderService.cancelOrder(widget.orderId);
+      await _orderService.cancelOrder(
+        widget.orderId,
+        note: reason.isEmpty ? null : reason,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Đã huỷ order.')));
@@ -1013,6 +1107,32 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             _selectedDiscount = value;
                           });
                         },
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _discountCodeController,
+                        decoration: InputDecoration(
+                          labelText: 'Nhập mã giảm giá',
+                          suffixIcon: _applyingDiscountCode
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                )
+                              : IconButton(
+                                  tooltip: 'Áp dụng mã',
+                                  onPressed: () => _applyDiscountCode(subtotal),
+                                  icon: const Icon(Icons.check_circle_outline),
+                                ),
+                        ),
+                        textCapitalization: TextCapitalization.characters,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _applyDiscountCode(subtotal),
                       ),
                       const SizedBox(height: 12),
                       Row(

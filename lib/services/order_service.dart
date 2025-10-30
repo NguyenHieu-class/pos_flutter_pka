@@ -371,6 +371,29 @@ class OrderService {
     throw ApiException('Không lấy được danh sách mã giảm giá');
   }
 
+  Future<Discount?> findDiscountByCode(
+    String code, {
+    double? subtotal,
+  }) async {
+    final trimmed = code.trim();
+    if (trimmed.isEmpty) return null;
+    final query = <String, dynamic>{'code': trimmed};
+    if (subtotal != null) {
+      query['subtotal'] = subtotal.toString();
+    }
+    final response = await _api.get('/cashier/discounts', query: query);
+    if (response is List && response.isNotEmpty) {
+      final first = response.firstWhere(
+        (element) => element is Map<String, dynamic>,
+        orElse: () => null,
+      );
+      if (first is Map<String, dynamic>) {
+        return Discount.fromJson(first);
+      }
+    }
+    return null;
+  }
+
   Future<Map<String, dynamic>> checkoutOrder(
     int orderId, {
     Discount? discount,

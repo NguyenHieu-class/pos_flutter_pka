@@ -26,6 +26,19 @@ class DiscountsController {
     if ($subtotalParam !== null && $subtotalParam !== '') {
       $subtotal = (float)$subtotalParam;
     }
+    $codeParam = query('code');
+    if ($codeParam !== null) {
+      $code = strtoupper(trim($codeParam));
+      if ($code !== '') {
+        $row = DiscountsRepo::findActiveByCode($code);
+        if ($row) {
+          json_ok([self::sanitize($row)]);
+        } else {
+          json_ok([]);
+        }
+        return;
+      }
+    }
     $rows = DiscountsRepo::listAvailableForCashier($subtotal);
     json_ok(array_map(fn($row) => self::sanitize($row), $rows));
   }
