@@ -49,3 +49,9 @@ function resolve_area_image(array $row, array $primaryMap): ?string {
   $path = $primaryMap[$id] ?? $row['image_path'] ?? null;
   return build_url($path);
 }
+
+function resolve_station_icon(array $row, array $primaryMap): ?string {
+  $id = (int)$row['id'];
+  $path = $primaryMap[$id] ?? $row['icon_path'] ?? null;
+  return build_url($path);
+}
