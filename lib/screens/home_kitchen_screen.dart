@@ -605,9 +605,9 @@ class _HomeKitchenScreenState extends State<HomeKitchenScreen> {
       isExpanded: true,
       decoration: InputDecoration(labelText: label),
       items: [
-        const DropdownMenuItem<T?>(
+        DropdownMenuItem<T?>(
           value: null,
-          child: Text('Tất cả'),
+          child: const Text('Tất cả'),
         ),
         ...options.map(
           (option) => DropdownMenuItem<T?>(
