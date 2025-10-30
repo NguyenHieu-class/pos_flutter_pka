@@ -20,17 +20,26 @@ function read_auth_header(): ?string {
     $_SERVER['HTTP_AUTHORIZATION'] ?? null,
     $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? null,
     $_SERVER['Authorization'] ?? null,
+    $_SERVER['HTTP_X_AUTHORIZATION'] ?? null,
+    $_SERVER['HTTP_X_AUTH_TOKEN'] ?? null,
   ];
   foreach ($candidates as $hdr) {
     if ($hdr) return $hdr;
   }
   if (function_exists('getallheaders')) {
     foreach (getallheaders() as $key => $value) {
-      if (strcasecmp($key, 'Authorization') === 0 && $value) {
+      if (!$value) continue;
+      if (
+        strcasecmp($key, 'Authorization') === 0 ||
+        strcasecmp($key, 'X-Auth-Token') === 0 ||
+        strcasecmp($key, 'X-Authorization') === 0
+      ) {
         return $value;
       }
     }
   }
+  if (!empty($_GET['token'])) return $_GET['token'];
+  if (!empty($_POST['token'])) return $_POST['token'];
   return null;
 }
 
