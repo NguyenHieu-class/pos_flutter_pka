@@ -88,6 +88,15 @@ class OrderService {
     throw ApiException('Không lấy được danh sách bàn');
   }
 
+  Future<void> updateTableStatus({
+    required int tableId,
+    required String status,
+  }) async {
+    await _api.put('/tables/$tableId/status', {
+      'status': status,
+    });
+  }
+
   Future<int> createTable({
     required int areaId,
     required String name,

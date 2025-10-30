@@ -10,6 +10,7 @@ class DiningTable {
     this.status,
     this.capacity,
     this.imageUrl,
+    this.openOrderId,
   });
 
   factory DiningTable.fromJson(Map<String, dynamic> json) {
@@ -29,6 +30,9 @@ class DiningTable {
       status: json['status'] as String? ?? json['table_status'] as String?,
       capacity: json['capacity'] as int?,
       imageUrl: json['image_url'] as String?,
+      openOrderId: json['open_order_id'] is int
+          ? json['open_order_id'] as int
+          : int.tryParse(json['open_order_id']?.toString() ?? ''),
     );
   }
 
@@ -41,4 +45,5 @@ class DiningTable {
   final String? status;
   final int? capacity;
   final String? imageUrl;
+  final int? openOrderId;
 }
