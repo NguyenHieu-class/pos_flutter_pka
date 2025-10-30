@@ -62,6 +62,34 @@ class DiscountsRepo {
     pdo()->prepare("DELETE FROM discounts WHERE id=?")->execute([$id]);
   }
 
+  public static function listAvailableForCashier(?float $subtotal = null): array {
+    $now = date('Y-m-d H:i:s');
+    $sql = "SELECT * FROM discounts WHERE active=1";
+    $args = [];
+    $sql .= " AND (starts_at IS NULL OR starts_at <= ?)";
+    $sql .= " AND (ends_at IS NULL OR ends_at >= ?)";
+    $args[] = $now;
+    $args[] = $now;
+    if ($subtotal !== null) {
+      $sql .= " AND (min_subtotal IS NULL OR min_subtotal <= ?)";
+      $args[] = $subtotal;
+    }
+    $sql .= " ORDER BY name";
+    $s = pdo()->prepare($sql);
+    $s->execute($args);
+    return $s->fetchAll();
+  }
+
+  public static function findActiveById(int $id) {
+    $now = date('Y-m-d H:i:s');
+    $sql = "SELECT * FROM discounts WHERE id=? AND active=1";
+    $sql .= " AND (starts_at IS NULL OR starts_at <= ?)";
+    $sql .= " AND (ends_at IS NULL OR ends_at >= ?)";
+    $s = pdo()->prepare($sql);
+    $s->execute([$id, $now, $now]);
+    return $s->fetch();
+  }
+
   public static function usageHistory(array $filters = []): array {
     $sql = "SELECT od.*, o.code AS order_code, o.total, o.closed_at
             FROM order_discounts od

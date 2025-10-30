@@ -5,6 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../models/category.dart';
+import '../models/discount.dart';
 import '../models/item.dart';
 import '../models/modifier.dart';
 import '../models/modifier_group.dart';
@@ -54,8 +55,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   List<Category> _categories = const [];
   int? _selectedCategoryId;
   final List<_PendingOrderItem> _pendingItems = [];
+  List<Discount> _availableDiscounts = const [];
+  Discount? _selectedDiscount;
   bool _sendingItems = false;
   bool _processingCheckout = false;
+  bool _loadingDiscounts = false;
+  double? _lastDiscountSubtotal;
+  bool _cancellingOrder = false;
   final NumberFormat _currencyFormat =
       NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
 
@@ -79,9 +85,81 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
+  Future<void> _loadDiscountsForSubtotal(double subtotal,
+      {bool force = false}) async {
+    if (!force && subtotal <= 0) {
+      if (_availableDiscounts.isNotEmpty || _selectedDiscount != null) {
+        setState(() {
+          _availableDiscounts = const [];
+          _selectedDiscount = null;
+          _lastDiscountSubtotal = subtotal;
+        });
+      }
+      return;
+    }
+    if (_loadingDiscounts) return;
+    if (!force &&
+        _lastDiscountSubtotal != null &&
+        (subtotal - _lastDiscountSubtotal!).abs() < 0.01) {
+      return;
+    }
+    setState(() {
+      _loadingDiscounts = true;
+    });
+    try {
+      final discounts =
+          await _orderService.fetchAvailableDiscounts(subtotal: subtotal);
+      if (!mounted) return;
+      Discount? selected;
+      if (_selectedDiscount != null) {
+        for (final discount in discounts) {
+          if (discount.id == _selectedDiscount!.id) {
+            selected = discount;
+            break;
+          }
+        }
+      }
+      setState(() {
+        _availableDiscounts = discounts;
+        _selectedDiscount = selected;
+        _lastDiscountSubtotal = subtotal;
+      });
+    } catch (error) {
+      debugPrint('Không thể tải mã giảm giá: $error');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingDiscounts = false;
+        });
+      } else {
+        _loadingDiscounts = false;
+      }
+    }
+  }
+
+  double _calculateOrderSubtotal(Order order) {
+    if (order.subtotal != null && order.subtotal! > 0) {
+      return order.subtotal!;
+    }
+    return order.items.fold<double>(
+      0,
+      (sum, item) =>
+          sum + (item.lineTotal ?? (item.unitPrice ?? 0) * item.quantity),
+    );
+  }
+
+  String _formatDiscountLabel(Discount discount, double subtotal) {
+    final amount = discount.calculateAmount(subtotal);
+    final formattedAmount = amount > 0
+        ? ' (-${_currencyFormat.format(amount)})'
+        : '';
+    return '${discount.label}$formattedAmount';
+  }
+
   Future<void> _refreshOrder() async {
     setState(() {
       _orderFuture = _orderService.fetchOrderDetail(widget.orderId);
+      _lastDiscountSubtotal = null;
     });
     await _orderFuture;
   }
@@ -583,11 +661,22 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       return;
     }
     if (_processingCheckout) return;
+    final subtotal = _calculateOrderSubtotal(order);
+    final discount = _selectedDiscount;
+    if (discount != null && subtotal < discount.minSubtotal) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Đơn hàng chưa đạt mức tối thiểu ${_currencyFormat.format(discount.minSubtotal)} để áp dụng mã.')));
+      return;
+    }
     setState(() {
       _processingCheckout = true;
     });
     try {
-      final result = await _orderService.checkoutOrder(widget.orderId);
+      final result = await _orderService.checkoutOrder(
+        widget.orderId,
+        discount: discount,
+      );
       if (!mounted) return;
       await _showReceiptDialog(order, result);
       if (!mounted) return;
@@ -607,6 +696,60 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         });
       } else {
         _processingCheckout = false;
+      }
+    }
+  }
+
+  Future<void> _cancelOrder() async {
+    if (_cancellingOrder) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Huỷ order'),
+          content: const Text(
+              'Bạn có chắc chắn muốn huỷ order này? Tất cả món sẽ được đánh dấu huỷ.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Không'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+              child: const Text('Huỷ order'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) return;
+    setState(() {
+      _cancellingOrder = true;
+    });
+    try {
+      await _orderService.cancelOrder(widget.orderId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Đã huỷ order.')));
+      Navigator.pop(context);
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể huỷ order: $error')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _cancellingOrder = false;
+        });
+      } else {
+        _cancellingOrder = false;
       }
     }
   }
@@ -696,14 +839,22 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           if (order == null) {
             return const Center(child: Text('Không tìm thấy order.'));
           }
-          final existingTotal = order.total ?? order.items.fold<double>(
-              0,
-              (sum, item) =>
-                  sum + (item.lineTotal ?? (item.unitPrice ?? 0) * item.quantity));
+          final subtotal = _calculateOrderSubtotal(order);
           final pendingTotal =
               _pendingItems.fold<double>(0, (sum, item) => sum + item.total);
           final pendingCount =
               _pendingItems.fold<int>(0, (sum, item) => sum + item.quantity);
+          final selectedDiscount = _selectedDiscount;
+          double discountAmount = selectedDiscount != null
+              ? selectedDiscount.calculateAmount(subtotal)
+              : (order.discountTotal ?? 0);
+          if (discountAmount < 0) discountAmount = 0;
+          if (discountAmount > subtotal) discountAmount = subtotal;
+          double payableTotal = subtotal - discountAmount;
+          if (payableTotal < 0) payableTotal = 0;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _loadDiscountsForSubtotal(subtotal);
+          });
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -719,7 +870,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      _currencyFormat.format(existingTotal),
+                      _currencyFormat.format(subtotal),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     if (pendingTotal > 0)
@@ -820,6 +971,94 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (order.items.isNotEmpty) ...[
+                      DropdownButtonFormField<Discount?>(
+                        value: _selectedDiscount,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText: 'Mã giảm giá',
+                          helperText: _availableDiscounts.isEmpty
+                              ? 'Không có mã giảm giá phù hợp'
+                              : null,
+                          suffixIcon: _loadingDiscounts
+                              ? Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                )
+                              : IconButton(
+                                  tooltip: 'Làm mới',
+                                  onPressed: () =>
+                                      _loadDiscountsForSubtotal(subtotal, force: true),
+                                  icon: const Icon(Icons.refresh),
+                                ),
+                        ),
+                        items: [
+                          const DropdownMenuItem<Discount?>(
+                              value: null, child: Text('Không áp dụng')),
+                          ..._availableDiscounts.map(
+                            (discount) => DropdownMenuItem<Discount?>(
+                              value: discount,
+                              child: Text(_formatDiscountLabel(discount, subtotal)),
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedDiscount = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Tạm tính'),
+                          Text(_currencyFormat.format(subtotal)),
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Giảm giá',
+                            style: discountAmount > 0
+                                ? TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.secondary,
+                                  )
+                                : null,
+                          ),
+                          Text('-${_currencyFormat.format(discountAmount)}'),
+                        ],
+                      ),
+                      const Divider(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Thành tiền',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            _currencyFormat.format(payableTotal),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     if (_pendingItems.isNotEmpty)
                       FilledButton.icon(
                         onPressed: _sendingItems ? null : _sendPendingItems,
@@ -854,6 +1093,30 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             )
                           : const Text('Thanh toán & In hoá đơn'),
                     ),
+                    if (order.items.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: _cancellingOrder ? null : _cancelOrder,
+                        icon: _cancellingOrder
+                            ? SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                              )
+                            : const Icon(Icons.cancel_outlined),
+                        label:
+                            Text(_cancellingOrder ? 'Đang huỷ...' : 'Huỷ order'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor:
+                              Theme.of(context).colorScheme.error,
+                          side: BorderSide(
+                              color: Theme.of(context).colorScheme.error),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

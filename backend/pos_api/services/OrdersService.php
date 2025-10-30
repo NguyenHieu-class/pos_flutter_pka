@@ -2,6 +2,7 @@
 // services/OrdersService.php
 require_once __DIR__ . '/../lib/db.php';
 require_once __DIR__ . '/../lib/util.php';
+require_once __DIR__ . '/../repos/DiscountsRepo.php';
 
 class OrdersService {
   public static function addItemWithModifiers(int $orderId, int $itemId, int $qty, ?string $note, array $modifierOptionIds): int {
@@ -41,10 +42,51 @@ class OrdersService {
       if ($order['status']!=='open') { $pdo->rollBack(); json_err('CONFLICT','Order not open'); }
 
       $subtotal = (float)$pdo->query("SELECT COALESCE(SUM(line_total),0) FROM order_items WHERE order_id=".$orderId)->fetchColumn();
-      $discount=(float)($payload['discount_total'] ?? 0);
-      $tax     =(float)($payload['tax_total'] ?? 0);
-      $service =(float)($payload['service_total'] ?? 0);
-      $total   =$subtotal-$discount+$tax+$service;
+
+      $discountPayload = $payload['discount'] ?? null;
+      $discountTotal = 0.0;
+      $discountSnapshot = null;
+      if (is_array($discountPayload)) {
+        if (isset($discountPayload['id'])) {
+          $discountRow = DiscountsRepo::findActiveById((int)$discountPayload['id']);
+          if (!$discountRow) {
+            $pdo->rollBack();
+            json_err('VALIDATION_FAILED', 'Mã giảm giá không hợp lệ', [], 422);
+          }
+          $minSubtotal = isset($discountRow['min_subtotal']) ? (float)$discountRow['min_subtotal'] : 0.0;
+          if ($minSubtotal > 0 && $subtotal + 0.00001 < $minSubtotal) {
+            $pdo->rollBack();
+            json_err('VALIDATION_FAILED', 'Đơn hàng chưa đạt điều kiện áp dụng mã giảm giá', [], 422);
+          }
+          $discountTotal = (float)$discountRow['value'];
+          if ($discountRow['type'] === 'percent') {
+            $rate = max(0.0, min(100.0, (float)$discountRow['value']));
+            $discountTotal = round($subtotal * $rate / 100, 2);
+          }
+          if ($discountTotal < 0) $discountTotal = 0;
+          if ($discountTotal > $subtotal) $discountTotal = $subtotal;
+          $discountSnapshot = [
+            'discount_id' => (int)$discountRow['id'],
+            'code' => $discountRow['code'],
+            'name' => $discountRow['name'],
+            'type' => $discountRow['type'],
+            'value' => (float)$discountRow['value'],
+            'amount' => $discountTotal,
+          ];
+        } elseif (isset($discountPayload['amount'])) {
+          $discountTotal = max(0.0, (float)$discountPayload['amount']);
+          if ($discountTotal > $subtotal) $discountTotal = $subtotal;
+        }
+      } else {
+        $discountTotal = (float)($payload['discount_total'] ?? 0);
+      }
+
+      $tax     = (float)($payload['tax_total'] ?? 0);
+      $service = (float)($payload['service_total'] ?? 0);
+      $total   = $subtotal - $discountTotal + $tax + $service;
+      if ($total < 0) {
+        $total = 0;
+      }
 
       $methods = $payload['payments'] ?? [['method'=>'cash','amount'=>$total]];
       $paidTxt=[];
@@ -59,7 +101,22 @@ class OrdersService {
       }
 
       $pdo->prepare("UPDATE orders SET subtotal=?,discount_total=?,tax_total=?,service_total=?,total=?,status='closed',closed_by=?,closed_at=NOW(),note=? WHERE id=?")
-          ->execute([$subtotal,$discount,$tax,$service,$total,$cashierId,$payload['note'] ?? null,$orderId]);
+          ->execute([$subtotal,$discountTotal,$tax,$service,$total,$cashierId,$payload['note'] ?? null,$orderId]);
+
+      $pdo->prepare("DELETE FROM order_discounts WHERE order_id=?")
+          ->execute([$orderId]);
+      if ($discountSnapshot !== null) {
+        $pdo->prepare("INSERT INTO order_discounts(order_id,discount_id,code,name,type,value,amount) VALUES(?,?,?,?,?,?,?)")
+            ->execute([
+              $orderId,
+              $discountSnapshot['discount_id'],
+              $discountSnapshot['code'],
+              $discountSnapshot['name'],
+              $discountSnapshot['type'],
+              $discountSnapshot['value'],
+              $discountSnapshot['amount'],
+            ]);
+      }
 
       $pdo->prepare("UPDATE dining_tables SET status='cleaning' WHERE id=(SELECT table_id FROM orders WHERE id=?)")
           ->execute([$orderId]);
@@ -78,7 +135,7 @@ class OrdersService {
                      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
           ->execute([
             $orderId,$receiptNo,$x['table_code'] ?? null,$x['area_code'] ?? null,$cashierId,$cashierName,$order['customer_name'] ?? null,
-            $subtotal,$discount,$tax,$service,$total,implode(',',$paidTxt),date('Y-m-d H:i:s'),$payload['note'] ?? null
+            $subtotal,$discountTotal,$tax,$service,$total,implode(',',$paidTxt),date('Y-m-d H:i:s'),$payload['note'] ?? null
           ]);
       $rid=(int)$pdo->lastInsertId();
 
@@ -101,7 +158,7 @@ class OrdersService {
       $pdo->commit();
       return ['receipt'=>[
         'id'=>$rid,'receipt_no'=>$receiptNo,'table_code'=>$x['table_code'] ?? null,'area_code'=>$x['area_code'] ?? null,
-        'subtotal'=>$subtotal,'discount_total'=>$discount,'tax_total'=>$tax,'service_total'=>$service,'total'=>$total,
+        'subtotal'=>$subtotal,'discount_total'=>$discountTotal,'tax_total'=>$tax,'service_total'=>$service,'total'=>$total,
         'paid_methods'=>implode(',',$paidTxt),'paid_at'=>date('Y-m-d H:i:s')
       ]];
     } catch (Throwable $e) { $pdo->rollBack(); json_err('SERVER_ERROR',$e->getMessage(),[],500); }

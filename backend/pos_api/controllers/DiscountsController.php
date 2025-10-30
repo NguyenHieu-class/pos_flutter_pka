@@ -19,6 +19,17 @@ class DiscountsController {
     ];
   }
 
+  public static function cashierList() {
+    need_role(['admin','cashier']);
+    $subtotalParam = query('subtotal');
+    $subtotal = null;
+    if ($subtotalParam !== null && $subtotalParam !== '') {
+      $subtotal = (float)$subtotalParam;
+    }
+    $rows = DiscountsRepo::listAvailableForCashier($subtotal);
+    json_ok(array_map(fn($row) => self::sanitize($row), $rows));
+  }
+
   public static function list() {
     need_role(['admin']);
     $filters = [

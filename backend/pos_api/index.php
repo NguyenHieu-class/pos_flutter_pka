@@ -118,6 +118,7 @@ try {
   if (preg_match('#^/v1/order-items/(\\d+)$#',$path,$m) && $method==='PUT') return OrdersController::updateOrderItem((int)$m[1]);
   if (preg_match('#^/v1/order-items/(\\d+)$#',$path,$m) && $method==='DELETE') return OrdersController::deleteOrderItem((int)$m[1]);
   if (preg_match('#^/v1/orders/(\\d+)/checkout$#',$path,$m) && $method==='POST') return OrdersController::checkout((int)$m[1]);
+  if (preg_match('#^/v1/orders/(\\d+)/cancel$#',$path,$m) && $method==='POST') return OrdersController::cancel((int)$m[1]);
 
   // ========== KITCHEN ==========
   if ($path === '/v1/kitchen/queue' && $method==='GET') return KitchenController::queue();
@@ -178,6 +179,7 @@ try {
   if ($path === '/v1/admin/stock-consumption' && $method==='GET') return InventoryController::consumption();
 
   // ========== DISCOUNTS ==========
+  if ($path === '/v1/cashier/discounts' && $method==='GET') return DiscountsController::cashierList();
   if ($path === '/v1/admin/discounts' && $method==='GET') return DiscountsController::list();
   if ($path === '/v1/admin/discounts' && $method==='POST') return DiscountsController::create();
   if (preg_match('#^/v1/admin/discounts/(\\d+)$#',$path,$m)) {

@@ -14,6 +14,10 @@ class Order {
     this.areaCode,
     this.status,
     this.customerName,
+    this.subtotal,
+    this.discountTotal,
+    this.taxTotal,
+    this.serviceTotal,
     this.total,
     this.createdAt,
     this.closedAt,
@@ -35,6 +39,12 @@ class Order {
       areaCode: json['area_code'] as String?,
       status: json['status'] as String? ?? json['order_status'] as String?,
       customerName: json['customer_name'] as String?,
+      subtotal: parseDouble(json['subtotal']) ??
+          parseDouble(json['total_before_discount']) ??
+          parseDouble(json['total_amount']),
+      discountTotal: parseDouble(json['discount_total']),
+      taxTotal: parseDouble(json['tax_total']),
+      serviceTotal: parseDouble(json['service_total']),
       total: parseDouble(json['total']) ??
           parseDouble(json['grand_total']) ??
           parseDouble(json['total_amount']),
@@ -59,6 +69,10 @@ class Order {
   final String? areaCode;
   final String? status;
   final String? customerName;
+  final double? subtotal;
+  final double? discountTotal;
+  final double? taxTotal;
+  final double? serviceTotal;
   final double? total;
   final String? createdAt;
   final String? closedAt;

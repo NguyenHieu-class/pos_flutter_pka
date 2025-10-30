@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/area.dart';
 import '../models/category.dart';
+import '../models/discount.dart';
 import '../models/item.dart';
 import '../models/modifier.dart';
 import '../models/modifier_group.dart';
@@ -354,12 +355,58 @@ class OrderService {
     });
   }
 
-  Future<Map<String, dynamic>> checkoutOrder(int orderId) async {
-    final response = await _api.post('/orders/$orderId/checkout', {});
+  Future<List<Discount>> fetchAvailableDiscounts({double? subtotal}) async {
+    final query = <String, dynamic>{};
+    if (subtotal != null) {
+      query['subtotal'] = subtotal.toString();
+    }
+    final response =
+        await _api.get('/cashier/discounts', query: query.isEmpty ? null : query);
+    if (response is List) {
+      return response
+          .whereType<Map<String, dynamic>>()
+          .map(Discount.fromJson)
+          .toList();
+    }
+    throw ApiException('Không lấy được danh sách mã giảm giá');
+  }
+
+  Future<Map<String, dynamic>> checkoutOrder(
+    int orderId, {
+    Discount? discount,
+    List<Map<String, dynamic>>? payments,
+    String? note,
+  }) async {
+    final payload = <String, dynamic>{};
+    if (discount != null) {
+      payload['discount'] = {'id': discount.id};
+    }
+    if (payments != null && payments.isNotEmpty) {
+      payload['payments'] = payments;
+    }
+    if (note != null && note.isNotEmpty) {
+      payload['note'] = note;
+    }
+    final response = await _api.post('/orders/$orderId/checkout', payload);
     if (response is Map<String, dynamic>) {
       return response['receipt'] as Map<String, dynamic>? ?? response;
     }
     throw ApiException('Không thể thanh toán hóa đơn');
+  }
+
+  Future<void> cancelOrder(
+    int orderId, {
+    int? reasonId,
+    String? note,
+  }) async {
+    final payload = <String, dynamic>{};
+    if (reasonId != null) {
+      payload['reason_id'] = reasonId;
+    }
+    if (note != null && note.isNotEmpty) {
+      payload['note'] = note;
+    }
+    await _api.post('/orders/$orderId/cancel', payload);
   }
 
   Future<List<Map<String, dynamic>>> fetchReceipts({
