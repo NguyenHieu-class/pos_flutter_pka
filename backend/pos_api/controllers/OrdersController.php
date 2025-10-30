@@ -7,6 +7,22 @@ require_once __DIR__ . '/../repos/TablesRepo.php';
 require_once __DIR__ . '/../services/OrdersService.php';
 
 class OrdersController {
+  public static function list() {
+    need_role(['admin','cashier']);
+    $statusParam = $_GET['status'] ?? 'open';
+    $statusParam = is_string($statusParam) ? strtolower(trim($statusParam)) : 'open';
+    $allowed = ['open', 'closed', 'cancelled'];
+    if ($statusParam === 'all' || $statusParam === '') {
+      $status = null;
+    } elseif (in_array($statusParam, $allowed, true)) {
+      $status = $statusParam;
+    } else {
+      $status = 'open';
+    }
+    $orders = OrdersRepo::listOrders($status);
+    json_ok($orders);
+  }
+
   public static function create() {
     $u = need_role(['admin','cashier']);
     $b = input_json(); require_fields($b, ['table_id']);

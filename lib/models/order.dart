@@ -9,10 +9,15 @@ class Order {
     required this.tableId,
     this.tableName,
     this.tableCode,
+    this.tableStatus,
+    this.areaName,
+    this.areaCode,
     this.status,
     this.customerName,
     this.total,
     this.createdAt,
+    this.closedAt,
+    this.openedByName,
     this.items = const <OrderItem>[],
   });
 
@@ -25,11 +30,18 @@ class Order {
           ?? json['table_code'] as String?
           ?? json['table'] as String?,
       tableCode: json['table_code'] as String?,
+      tableStatus: json['table_status'] as String?,
+      areaName: json['area_name'] as String?,
+      areaCode: json['area_code'] as String?,
       status: json['status'] as String? ?? json['order_status'] as String?,
       customerName: json['customer_name'] as String?,
-      total: parseDouble(json['total']) ?? parseDouble(json['grand_total']),
+      total: parseDouble(json['total']) ??
+          parseDouble(json['grand_total']) ??
+          parseDouble(json['total_amount']),
       createdAt: json['created_at'] as String?
           ?? json['opened_at'] as String?,
+      closedAt: json['closed_at'] as String?,
+      openedByName: json['opened_by_name'] as String?,
       items: itemsJson is List
           ? itemsJson
               .map((item) => OrderItem.fromJson(item as Map<String, dynamic>))
@@ -42,10 +54,15 @@ class Order {
   final int tableId;
   final String? tableName;
   final String? tableCode;
+  final String? tableStatus;
+  final String? areaName;
+  final String? areaCode;
   final String? status;
   final String? customerName;
   final double? total;
   final String? createdAt;
+  final String? closedAt;
+  final String? openedByName;
   final List<OrderItem> items;
 }
 

@@ -170,6 +170,22 @@ class OrderService {
     throw ApiException('Không thể tạo order mới');
   }
 
+  Future<List<Order>> fetchOrders({String? status}) async {
+    final query = <String, String>{};
+    if (status != null && status.isNotEmpty) {
+      query['status'] = status;
+    }
+    final response =
+        await _api.get('/orders', query: query.isEmpty ? null : query);
+    if (response is List) {
+      return response
+          .whereType<Map<String, dynamic>>()
+          .map(Order.fromJson)
+          .toList();
+    }
+    throw ApiException('Không lấy được danh sách order');
+  }
+
   Future<List<Category>> fetchCategories() async {
     final response = await _api.get('/categories');
     if (response is List) {
