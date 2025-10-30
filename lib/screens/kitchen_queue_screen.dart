@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
@@ -15,18 +17,21 @@ class KitchenQueueScreen extends StatefulWidget {
 class _KitchenQueueScreenState extends State<KitchenQueueScreen> {
   final _kitchenService = KitchenService.instance;
   late Future<List<KitchenTicket>> _future;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
     _future = _kitchenService.fetchKitchenQueue();
+    _startAutoRefresh();
   }
 
   Future<void> _refresh() async {
+    final future = _kitchenService.fetchKitchenQueue();
     setState(() {
-      _future = _kitchenService.fetchKitchenQueue();
+      _future = future;
     });
-    await _future;
+    await future;
   }
 
   Future<void> _markReady(KitchenTicket ticket) async {
@@ -51,8 +56,61 @@ class _KitchenQueueScreenState extends State<KitchenQueueScreen> {
     }
   }
 
+  void _startAutoRefresh() {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 8), (_) async {
+      if (!mounted) return;
+      try {
+        final future = _kitchenService.fetchKitchenQueue();
+        setState(() {
+          _future = future;
+        });
+        await future;
+      } catch (_) {
+        // Đã có FutureBuilder hiển thị lỗi nên bỏ qua lỗi làm mới tự động.
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
+  }
+
+  String _statusLabel(String? status) {
+    switch (status) {
+      case 'preparing':
+        return 'Đang chế biến';
+      case 'ready':
+        return 'Đã sẵn sàng';
+      case 'served':
+        return 'Đã phục vụ';
+      case 'cancelled':
+        return 'Đã huỷ';
+      default:
+        return 'Chờ bếp';
+    }
+  }
+
+  Color _statusColor(String? status, ColorScheme scheme) {
+    switch (status) {
+      case 'preparing':
+        return scheme.primary;
+      case 'ready':
+        return scheme.tertiary;
+      case 'served':
+        return scheme.secondary;
+      case 'cancelled':
+        return scheme.error;
+      default:
+        return scheme.outline;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: const Text('Hàng đợi bếp')),
       body: RefreshIndicator(
@@ -92,6 +150,7 @@ class _KitchenQueueScreenState extends State<KitchenQueueScreen> {
                   if (ticket.stationName != null)
                     'Trạm: ${ticket.stationName}',
                   if (ticket.orderedAt != null) ticket.orderedAt!,
+                  'Trạng thái: ${_statusLabel(ticket.kitchenStatus)}',
                 ];
                 return OrderTile(
                   title: ticket.itemName,
@@ -99,9 +158,35 @@ class _KitchenQueueScreenState extends State<KitchenQueueScreen> {
                   subtitle: subtitleParts.join(' • '),
                   note: ticket.note,
                   modifiers: ticket.modifiers,
-                  trailing: FilledButton.tonal(
-                    onPressed: () => _markReady(ticket),
-                    child: const Text('Hoàn thành'),
+                  trailing: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color:
+                              _statusColor(ticket.kitchenStatus, colorScheme)
+                                  .withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        child: Text(
+                          _statusLabel(ticket.kitchenStatus),
+                          style: TextStyle(
+                            color: _statusColor(ticket.kitchenStatus, colorScheme),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      FilledButton.tonal(
+                        onPressed: ticket.kitchenStatus == 'ready'
+                            ? null
+                            : () => _markReady(ticket),
+                        child: const Text('Hoàn thành'),
+                      ),
+                    ],
                   ),
                 );
               },
