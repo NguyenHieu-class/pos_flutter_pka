@@ -8,6 +8,7 @@ import 'screens/home_cashier_screen.dart';
 import 'screens/home_kitchen_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
+import 'utils/navigation.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +33,25 @@ class _POSAppState extends State<POSApp> {
   void initState() {
     super.initState();
     _sessionFuture = _authService.loadSavedSession();
+    _authService.onSessionExpired = _handleSessionExpired;
+  }
+
+  @override
+  void dispose() {
+    _authService.onSessionExpired = null;
+    super.dispose();
+  }
+
+  Future<void> _handleSessionExpired() async {
+    final navigator = rootNavigatorKey.currentState;
+    if (navigator == null) {
+      return;
+    }
+    // Remove every route and show the login screen again.
+    navigator.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   @override
@@ -47,6 +67,7 @@ class _POSAppState extends State<POSApp> {
       title: 'PKA POS',
       debugShowCheckedModeBanner: false,
       theme: theme,
+      navigatorKey: rootNavigatorKey,
       home: FutureBuilder<User?>(
         future: _sessionFuture,
         builder: (context, snapshot) {

@@ -125,8 +125,10 @@ class ApiService {
         }
       }
     }
-    String message = 'Request failed with status: ${response.statusCode}';
-    if (decoded is Map<String, dynamic>) {
+    String message = response.statusCode == 401
+        ? 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.'
+        : 'Request failed with status: ${response.statusCode}';
+    if (decoded is Map<String, dynamic> && response.statusCode != 401) {
       message = decoded['message'] as String? ??
           decoded['error'] as String? ??
           message;
