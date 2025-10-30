@@ -30,6 +30,7 @@ class ApiService {
     };
     if (auth && _token != null && _token!.isNotEmpty) {
       headers['Authorization'] = 'Bearer $_token';
+      headers['X-Auth-Token'] = _token!;
     }
     if (additional != null) {
       headers.addAll(additional);
