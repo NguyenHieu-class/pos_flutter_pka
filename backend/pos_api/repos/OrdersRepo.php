@@ -40,4 +40,37 @@ class OrdersRepo {
     $order['items'] = $items;
     return $order;
   }
+
+  public static function listOrders(?string $status = null): array {
+    $pdo = pdo();
+    $sql = "SELECT o.id,o.table_id,o.customer_name,o.status,o.opened_at,o.closed_at,o.total,o.subtotal,
+                   o.discount_total,o.tax_total,o.service_total,
+                   dt.name AS table_name, dt.code AS table_code, dt.status AS table_status,
+                   a.name AS area_name, a.code AS area_code,
+                   u.name AS opened_by_name,
+                   COALESCE(o.total, (
+                     SELECT SUM(line_total) FROM order_items oi WHERE oi.order_id = o.id
+                   )) AS total_amount
+            FROM orders o
+            LEFT JOIN dining_tables dt ON dt.id = o.table_id
+            LEFT JOIN areas a ON a.id = dt.area_id
+            LEFT JOIN users u ON u.id = o.opened_by";
+    $params = [];
+    if ($status !== null) {
+      $sql .= " WHERE o.status = ?";
+      $params[] = $status;
+    }
+    $sql .= " ORDER BY o.opened_at DESC, o.id DESC";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll();
+    foreach ($rows as &$row) {
+      if (!isset($row['total']) || $row['total'] === null) {
+        $row['total'] = $row['total_amount'];
+      }
+    }
+    unset($row);
+    return $rows;
+  }
 }

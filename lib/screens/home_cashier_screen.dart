@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'kitchen_queue_screen.dart';
 import 'login_screen.dart';
+import 'order_list_screen.dart';
 import 'receipts_screen.dart';
 import 'table_select_screen.dart';
 
@@ -49,6 +50,17 @@ class HomeCashierScreen extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (_) => const TableSelectScreen(),
+                ),
+              ),
+            ),
+            _CashierActionCard(
+              title: 'Danh sách order',
+              icon: Icons.receipt_long_outlined,
+              color: colorScheme.primaryContainer,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const OrderListScreen(),
                 ),
               ),
             ),

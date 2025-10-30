@@ -88,6 +88,7 @@ try {
   if (preg_match('#^/v1/tables/(\d+)/status$#',$path,$m) && $method==='PUT') return TablesController::setStatus((int)$m[1]);
 
   // ========== ORDERS ==========
+  if ($path === '/v1/orders' && $method==='GET')  return OrdersController::list();
   if ($path === '/v1/orders' && $method==='POST') return OrdersController::create();
   if (preg_match('#^/v1/orders/(\d+)$#',$path,$m) && $method==='GET') return OrdersController::get((int)$m[1]);
   if (preg_match('#^/v1/orders/(\d+)/items$#',$path,$m) && $method==='POST') return OrdersController::addItem((int)$m[1]);
