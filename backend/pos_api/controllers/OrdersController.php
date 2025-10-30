@@ -97,6 +97,46 @@ class OrdersController {
     json_ok(['deleted'=>(int)$orderItemId]);
   }
 
+  public static function cancel($id) {
+    $u = need_role(['admin','cashier']);
+    $b = input_json();
+    $pdo = pdo();
+    $pdo->beginTransaction();
+    try {
+      $stmt = $pdo->prepare("SELECT * FROM orders WHERE id=? FOR UPDATE");
+      $stmt->execute([(int)$id]);
+      $order = $stmt->fetch();
+      if (!$order) {
+        $pdo->rollBack();
+        json_err('NOT_FOUND', 'Order not found', [], 404);
+      }
+      if ($order['status'] !== 'open') {
+        $pdo->rollBack();
+        json_err('CONFLICT', 'Order is not open', [], 409);
+      }
+      $pdo->prepare("UPDATE orders SET status='cancelled', closed_by=?, closed_at=NOW(), note=COALESCE(?, note) WHERE id=?")
+          ->execute([(int)$u['id'], $b['note'] ?? null, (int)$id]);
+      if (!empty($order['table_id'])) {
+        $pdo->prepare("UPDATE dining_tables SET status='free' WHERE id=?")
+            ->execute([(int)$order['table_id']]);
+      }
+      $pdo->prepare("UPDATE order_items SET kitchen_status='cancelled' WHERE order_id=? AND kitchen_status IN ('queued','preparing')")
+          ->execute([(int)$id]);
+      $pdo->prepare("INSERT INTO order_cancellations(order_id,user_id,reason_id,note) VALUES(?,?,?,?)")
+          ->execute([
+            (int)$id,
+            (int)$u['id'],
+            isset($b['reason_id']) && $b['reason_id'] !== null ? (int)$b['reason_id'] : null,
+            $b['note'] ?? null,
+          ]);
+      $pdo->commit();
+      json_ok(['order_id' => (int)$id, 'status' => 'cancelled']);
+    } catch (Throwable $e) {
+      $pdo->rollBack();
+      json_err('SERVER_ERROR', $e->getMessage(), [], 500);
+    }
+  }
+
   public static function checkout($id) {
     $u = need_role(['admin','cashier']);
     $b = input_json();
