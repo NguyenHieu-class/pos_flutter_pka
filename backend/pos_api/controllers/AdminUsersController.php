@@ -103,12 +103,13 @@ class AdminUsersController {
     self::ensureManageableRole($user['role']);
     try {
       UsersRepo::delete((int)$id);
+      json_ok(['id' => (int)$id, 'deleted' => true]);
     } catch (PDOException $e) {
       if ($e->getCode() === '23000') {
-        json_err('CONSTRAINT_ERROR', 'Không thể xoá người dùng đang được sử dụng', [], 409);
+        UsersRepo::setActive((int)$id, false);
+        json_ok(['id' => (int)$id, 'deleted' => false, 'is_active' => false]);
       }
       throw $e;
     }
-    json_ok(['id' => (int)$id]);
   }
 }

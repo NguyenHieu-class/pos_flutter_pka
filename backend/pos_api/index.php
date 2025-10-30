@@ -16,6 +16,15 @@ require_once __DIR__ . '/controllers/AdminReceiptsController.php';
 require_once __DIR__ . '/controllers/AdminUsersController.php';
 require_once __DIR__ . '/controllers/UploadsController.php';
 require_once __DIR__ . '/controllers/ModifiersController.php';
+require_once __DIR__ . '/controllers/ReasonCodesController.php';
+require_once __DIR__ . '/controllers/KitchenStationsController.php';
+require_once __DIR__ . '/controllers/InventoryController.php';
+require_once __DIR__ . '/controllers/DiscountsController.php';
+require_once __DIR__ . '/controllers/PaymentMethodsController.php';
+require_once __DIR__ . '/controllers/ShiftsController.php';
+require_once __DIR__ . '/controllers/ReportsController.php';
+require_once __DIR__ . '/controllers/LogsController.php';
+require_once __DIR__ . '/controllers/ToolsController.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 
@@ -131,6 +140,87 @@ try {
   if ($path === '/v1/uploads/areas'      && $method==='POST') return UploadsController::uploadArea();
   if ($path === '/v1/uploads/modifiers'  && $method==='POST') return UploadsController::uploadModifier();
   if ($path === '/v1/uploads/stations'   && $method==='POST') return UploadsController::uploadStation();
+
+  // ========== REASON CODES ==========
+  if ($path === '/v1/admin/reason-codes' && $method==='GET') return ReasonCodesController::list();
+  if ($path === '/v1/admin/reason-codes' && $method==='POST') return ReasonCodesController::create();
+  if (preg_match('#^/v1/admin/reason-codes/(\\d+)$#',$path,$m)) {
+    if ($method==='PUT') return ReasonCodesController::update((int)$m[1]);
+    if ($method==='DELETE') return ReasonCodesController::delete((int)$m[1]);
+  }
+
+  // ========== KITCHEN STATIONS ==========
+  if ($path === '/v1/admin/stations' && $method==='GET') return KitchenStationsController::list();
+  if ($path === '/v1/admin/stations' && $method==='POST') return KitchenStationsController::create();
+  if (preg_match('#^/v1/admin/stations/(\\d+)$#',$path,$m)) {
+    if ($method==='PUT') return KitchenStationsController::update((int)$m[1]);
+    if ($method==='DELETE') return KitchenStationsController::delete((int)$m[1]);
+  }
+  if (preg_match('#^/v1/admin/stations/(\\d+)/icon$#',$path,$m) && $method==='POST')
+    return KitchenStationsController::setIcon((int)$m[1]);
+
+  // ========== INVENTORY ==========
+  if ($path === '/v1/admin/ingredients' && $method==='GET') return InventoryController::ingredients();
+  if ($path === '/v1/admin/ingredients' && $method==='POST') return InventoryController::createIngredient();
+  if (preg_match('#^/v1/admin/ingredients/(\\d+)$#',$path,$m)) {
+    if ($method==='PUT') return InventoryController::updateIngredient((int)$m[1]);
+    if ($method==='DELETE') return InventoryController::deleteIngredient((int)$m[1]);
+  }
+  if (preg_match('#^/v1/admin/items/(\\d+)/recipe$#',$path,$m)) {
+    if ($method==='GET') return InventoryController::getRecipe((int)$m[1]);
+    if ($method==='PUT') return InventoryController::setRecipe((int)$m[1]);
+  }
+  if ($path === '/v1/admin/stock-moves' && $method==='GET') return InventoryController::stockMoves();
+  if ($path === '/v1/admin/stock-in' && $method==='POST') return InventoryController::stockIn();
+  if ($path === '/v1/admin/stock-adjust' && $method==='POST') return InventoryController::stockAdjust();
+  if ($path === '/v1/admin/stock-summary' && $method==='GET') return InventoryController::stockSummary();
+  if ($path === '/v1/admin/stock-consumption' && $method==='GET') return InventoryController::consumption();
+
+  // ========== DISCOUNTS ==========
+  if ($path === '/v1/admin/discounts' && $method==='GET') return DiscountsController::list();
+  if ($path === '/v1/admin/discounts' && $method==='POST') return DiscountsController::create();
+  if (preg_match('#^/v1/admin/discounts/(\\d+)$#',$path,$m)) {
+    if ($method==='PUT') return DiscountsController::update((int)$m[1]);
+    if ($method==='DELETE') return DiscountsController::delete((int)$m[1]);
+  }
+  if ($path === '/v1/admin/discounts/history' && $method==='GET') return DiscountsController::history();
+
+  // ========== PAYMENT METHODS ==========
+  if ($path === '/v1/admin/payment-methods' && $method==='GET') return PaymentMethodsController::list();
+  if ($path === '/v1/admin/payment-methods' && $method==='POST') return PaymentMethodsController::create();
+  if (preg_match('#^/v1/admin/payment-methods/(\\d+)$#',$path,$m)) {
+    if ($method==='PUT') return PaymentMethodsController::update((int)$m[1]);
+    if ($method==='DELETE') return PaymentMethodsController::delete((int)$m[1]);
+  }
+  if (preg_match('#^/v1/admin/orders/(\\d+)/payments$#',$path,$m) && $method==='GET')
+    return PaymentMethodsController::orderPayments((int)$m[1]);
+
+  // ========== SHIFTS ==========
+  if ($path === '/v1/admin/shifts' && $method==='GET') return ShiftsController::list();
+  if ($path === '/v1/admin/shifts' && $method==='POST') return ShiftsController::create();
+  if (preg_match('#^/v1/admin/shifts/(\\d+)/close$#',$path,$m) && $method==='PUT')
+    return ShiftsController::close((int)$m[1]);
+  if (preg_match('#^/v1/admin/shifts/(\\d+)/movements$#',$path,$m)) {
+    if ($method==='GET') return ShiftsController::movements((int)$m[1]);
+    if ($method==='POST') return ShiftsController::addMovement((int)$m[1]);
+  }
+  if (preg_match('#^/v1/admin/shifts/(\\d+)/summary$#',$path,$m) && $method==='GET')
+    return ShiftsController::summary((int)$m[1]);
+
+  // ========== REPORTS ==========
+  if ($path === '/v1/admin/reports/revenue' && $method==='GET') return ReportsController::revenue();
+  if ($path === '/v1/admin/reports/top-items' && $method==='GET') return ReportsController::topItems();
+  if ($path === '/v1/admin/reports/inventory' && $method==='GET') return ReportsController::inventory();
+  if ($path === '/v1/admin/reports/shifts' && $method==='GET') return ReportsController::shiftSummary();
+
+  // ========== LOGS ==========
+  if ($path === '/v1/admin/logs/audit' && $method==='GET') return LogsController::audit();
+  if ($path === '/v1/admin/logs/activity' && $method==='GET') return LogsController::activity();
+
+  // ========== TOOLS ==========
+  if ($path === '/v1/admin/tools/export-menu' && $method==='GET') return ToolsController::exportMenu();
+  if ($path === '/v1/admin/tools/import-menu' && $method==='POST') return ToolsController::importMenu();
+  if ($path === '/v1/admin/tools/system-check' && $method==='GET') return ToolsController::systemCheck();
 
   // fallback 404
   http_response_code(404);

@@ -73,4 +73,9 @@ class UsersRepo {
   public static function delete(int $id) {
     pdo()->prepare("DELETE FROM users WHERE id=?")->execute([$id]);
   }
+
+  public static function setActive(int $id, bool $active): void {
+    pdo()->prepare("UPDATE users SET is_active=? WHERE id=?")
+        ->execute([$active ? 1 : 0, $id]);
+  }
 }

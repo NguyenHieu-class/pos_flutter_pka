@@ -22,10 +22,11 @@ class ModifiersRepo {
   }
 
   public static function insertGroup(array $payload): int {
-    $sql = "INSERT INTO modifier_groups(name, min_select, max_select, required, sort)
-            VALUES(?,?,?,?,?)";
+    $sql = "INSERT INTO modifier_groups(name, description, min_select, max_select, required, sort)
+            VALUES(?,?,?,?,?,?)";
     pdo()->prepare($sql)->execute([
       $payload['name'],
+      $payload['description'] ?? null,
       $payload['min_select'] ?? 0,
       $payload['max_select'] ?? null,
       !empty($payload['required']) ? 1 : 0,
@@ -36,10 +37,11 @@ class ModifiersRepo {
 
   public static function updateGroup(int $id, array $payload): void {
     $sql = "UPDATE modifier_groups
-            SET name=?, min_select=?, max_select=?, required=?, sort=?
+            SET name=?, description=?, min_select=?, max_select=?, required=?, sort=?
             WHERE id=?";
     pdo()->prepare($sql)->execute([
       $payload['name'],
+      $payload['description'] ?? null,
       $payload['min_select'] ?? 0,
       $payload['max_select'] ?? null,
       !empty($payload['required']) ? 1 : 0,
