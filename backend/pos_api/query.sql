@@ -184,6 +184,7 @@ CREATE TABLE order_items (
   tax_rate         DECIMAL(5,2)  DEFAULT 0.00 COMMENT 'Thuế % (nếu tính theo dòng)',
   line_total       DECIMAL(12,2) NOT NULL COMMENT 'Thành tiền dòng (đã cộng topping)',
   note             VARCHAR(255) COMMENT 'Ghi chú riêng dòng',
+  kitchen_cancel_reason VARCHAR(255) COMMENT 'Lý do huỷ từ bếp',
   course_no        INT DEFAULT 1 COMMENT 'Số course/đợt',
   priority         INT DEFAULT 0 COMMENT 'Ưu tiên trong bếp',
   kitchen_status   ENUM('queued','preparing','ready','served','cancelled') DEFAULT 'queued' COMMENT 'Trạng thái bếp cho dòng món',

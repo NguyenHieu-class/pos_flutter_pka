@@ -122,6 +122,7 @@ try {
 
   // ========== KITCHEN ==========
   if ($path === '/v1/kitchen/queue' && $method==='GET') return KitchenController::queue();
+  if ($path === '/v1/kitchen/history' && $method==='GET') return KitchenController::history();
   if (preg_match('#^/v1/kitchen/items/(\\d+)/status$#',$path,$m) && $method==='PUT') return KitchenController::setItemStatus((int)$m[1]);
 
   // ========== RECEIPTS (ADMIN) ==========
