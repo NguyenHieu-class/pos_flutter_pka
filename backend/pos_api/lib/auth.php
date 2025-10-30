@@ -15,8 +15,27 @@ function parse_token(?string $hdr): ?array {
   return ['uid' => (int)$parts[0], 'role' => $parts[1]];
 }
 
+function read_auth_header(): ?string {
+  $candidates = [
+    $_SERVER['HTTP_AUTHORIZATION'] ?? null,
+    $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? null,
+    $_SERVER['Authorization'] ?? null,
+  ];
+  foreach ($candidates as $hdr) {
+    if ($hdr) return $hdr;
+  }
+  if (function_exists('getallheaders')) {
+    foreach (getallheaders() as $key => $value) {
+      if (strcasecmp($key, 'Authorization') === 0 && $value) {
+        return $value;
+      }
+    }
+  }
+  return null;
+}
+
 function need_auth(): array {
-  $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+  $auth = read_auth_header();
   $t = parse_token($auth);
   if (!$t) json_err('UNAUTHORIZED', 'Missing or invalid token', [], 401);
   $stmt = pdo()->prepare("SELECT id, name, role, is_active FROM users WHERE id=?");
