@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 import '../models/category.dart';
 import '../models/item.dart';
 import '../models/modifier.dart';
+import '../models/modifier_group.dart';
 import '../models/order.dart';
 import '../services/api_service.dart';
 import '../services/order_service.dart';
@@ -94,10 +95,22 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Future<void> _addItem(MenuItem item) async {
     try {
-      final modifiers = await _orderService.fetchItemModifiers(item.id);
+      final modifierGroups = await _orderService.fetchItemModifiers(item.id);
+      final optionLookup = <int, Modifier>{};
+      final selectedModifiers = <int, Set<int>>{};
+      for (final group in modifierGroups) {
+        final defaults = <int>{};
+        for (final option in group.options) {
+          optionLookup[option.id] = option;
+          if (option.isDefault) {
+            defaults.add(option.id);
+          }
+        }
+        selectedModifiers[group.id] = defaults;
+      }
       final noteController = TextEditingController();
       int quantity = 1;
-      final selectedModifiers = <int>{};
+      final messenger = ScaffoldMessenger.of(context);
       final confirmed = await showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
@@ -111,10 +124,29 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             ),
             child: StatefulBuilder(
               builder: (context, setStateBottomSheet) {
-                double modifierDelta = modifiers
-                    .where((modifier) => selectedModifiers.contains(modifier.id))
+                final selectedOptionIds = selectedModifiers.values
+                    .expand((ids) => ids)
+                    .toList();
+                final modifierDelta = selectedOptionIds
+                    .map((id) => optionLookup[id])
+                    .whereType<Modifier>()
                     .fold<double>(0, (sum, modifier) => sum + (modifier.price ?? 0));
                 final totalPrice = (item.price + modifierDelta) * quantity;
+                String? helperForGroup(ModifierGroup group) {
+                  final parts = <String>[];
+                  final minRequired = group.minSelect > 0
+                      ? group.minSelect
+                      : (group.required ? 1 : 0);
+                  if (minRequired > 0) {
+                    parts.add('Tối thiểu $minRequired');
+                  } else if (group.required) {
+                    parts.add('Bắt buộc');
+                  }
+                  if (group.maxSelect != null && group.maxSelect! > 0) {
+                    parts.add('Tối đa ${group.maxSelect}');
+                  }
+                  return parts.isEmpty ? null : parts.join(' • ');
+                }
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,36 +180,90 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         ),
                       ],
                     ),
-                    if (modifiers.isNotEmpty) ...[
+                    if (modifierGroups.isNotEmpty) ...[
                       const Divider(),
                       Text('Chọn topping',
                           style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: modifiers
-                            .map(
-                              (modifier) => FilterChip(
-                                label: Text(
-                                  modifier.price != null
-                                      ? '${modifier.name} +${_currencyFormat.format(modifier.price)}'
-                                      : modifier.name,
+                      ...modifierGroups.map((group) {
+                        final selectedIds =
+                            selectedModifiers[group.id] ?? <int>{};
+                        final hint = helperForGroup(group);
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    group.name,
+                                    style:
+                                        Theme.of(context).textTheme.titleMedium,
+                                  ),
                                 ),
-                                selected: selectedModifiers.contains(modifier.id),
-                                onSelected: (value) {
-                                  setStateBottomSheet(() {
-                                    if (value) {
-                                      selectedModifiers.add(modifier.id);
-                                    } else {
-                                      selectedModifiers.remove(modifier.id);
-                                    }
-                                  });
-                                },
-                              ),
-                            )
-                            .toList(),
-                      ),
+                                if (hint != null)
+                                  Text(
+                                    hint,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall,
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: group.options.map((option) {
+                                final isSelected =
+                                    selectedIds.contains(option.id);
+                                return FilterChip(
+                                  label: Text(
+                                    option.price != null && option.price != 0
+                                        ? '${option.name} +${_currencyFormat.format(option.price)}'
+                                        : option.name,
+                                  ),
+                                  selected: isSelected,
+                                  onSelected: (value) {
+                                    setStateBottomSheet(() {
+                                      final current =
+                                          selectedModifiers.putIfAbsent(
+                                              group.id, () => <int>{});
+                                      if (value) {
+                                        final max = group.maxSelect;
+                                        if (max != null && max > 0) {
+                                          if (max == 1) {
+                                            current
+                                              ..clear()
+                                              ..add(option.id);
+                                          } else if (current.length >= max) {
+                                            messenger.showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Chỉ được chọn tối đa $max lựa chọn cho nhóm ${group.name}',
+                                                ),
+                                              ),
+                                            );
+                                            return;
+                                          } else {
+                                            current.add(option.id);
+                                          }
+                                        } else {
+                                          current.add(option.id);
+                                        }
+                                      } else {
+                                        current.remove(option.id);
+                                      }
+                                    });
+                                  },
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                        );
+                      }),
                     ],
                     const Divider(),
                     TextField(
@@ -188,7 +274,27 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
-                        onPressed: () => Navigator.pop(context, true),
+                        onPressed: () {
+                          for (final group in modifierGroups) {
+                            final selected =
+                                selectedModifiers[group.id] ?? <int>{};
+                            final minRequired = group.minSelect > 0
+                                ? group.minSelect
+                                : (group.required ? 1 : 0);
+                            if (minRequired > 0 &&
+                                selected.length < minRequired) {
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Vui lòng chọn tối thiểu $minRequired lựa chọn cho nhóm ${group.name}',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+                          }
+                          Navigator.pop(context, true);
+                        },
                         child: const Text('Thêm vào order'),
                       ),
                     ),
@@ -206,9 +312,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       }
       final noteText = noteController.text.trim();
       noteController.dispose();
-      final chosenModifiers = modifiers
-          .where((modifier) => selectedModifiers.contains(modifier.id))
-          .toList();
+      final chosenModifiers = <Modifier>[];
+      for (final group in modifierGroups) {
+        final selected = selectedModifiers[group.id];
+        if (selected == null || selected.isEmpty) continue;
+        for (final option in group.options) {
+          if (selected.contains(option.id)) {
+            chosenModifiers.add(option);
+          }
+        }
+      }
       if (!mounted) return;
       setState(() {
         _pendingItems.add(
