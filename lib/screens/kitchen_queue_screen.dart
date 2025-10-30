@@ -149,14 +149,24 @@ class _KitchenQueueScreenState extends State<KitchenQueueScreen> {
                   if (ticket.tableLabel != null) ticket.tableLabel!,
                   if (ticket.stationName != null)
                     'Trạm: ${ticket.stationName}',
+                  if (ticket.categoryName != null)
+                    'Danh mục: ${ticket.categoryName}',
                   if (ticket.orderedAt != null) ticket.orderedAt!,
                   'Trạng thái: ${_statusLabel(ticket.kitchenStatus)}',
                 ];
+                final notes = <String>[];
+                if (ticket.note != null && ticket.note!.isNotEmpty) {
+                  notes.add(ticket.note!);
+                }
+                if (ticket.cancelReason != null &&
+                    ticket.cancelReason!.isNotEmpty) {
+                  notes.add('Huỷ: ${ticket.cancelReason}');
+                }
                 return OrderTile(
                   title: ticket.itemName,
                   quantity: ticket.quantity,
                   subtitle: subtitleParts.join(' • '),
-                  note: ticket.note,
+                  note: notes.isEmpty ? null : notes.join('\n'),
                   modifiers: ticket.modifiers,
                   trailing: Column(
                     mainAxisSize: MainAxisSize.min,
