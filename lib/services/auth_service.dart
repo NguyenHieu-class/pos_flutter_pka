@@ -20,6 +20,10 @@ class AuthService {
   static const _tokenKey = 'pos_token';
   static const _userKey = 'pos_user';
 
+  /// Optional callback to be invoked when the current session is invalidated
+  /// by the backend (e.g. expired token).
+  Future<void> Function()? onSessionExpired;
+
   Future<User?> loadSavedSession() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(_tokenKey);
@@ -86,6 +90,13 @@ class AuthService {
   Future<void> _handleUnauthorized() async {
     if (currentUser.value != null) {
       await logout();
+      if (onSessionExpired != null) {
+        try {
+          await onSessionExpired!.call();
+        } catch (error, stackTrace) {
+          debugPrint('Failed to handle session expired callback: $error\n$stackTrace');
+        }
+      }
     }
   }
 }
