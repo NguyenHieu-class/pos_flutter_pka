@@ -34,9 +34,11 @@ class TablesRepo {
   }
 
   public static function tables($areaId = null, $status = null) {
-    $sql = "SELECT dt.*, a.code AS area_code, a.name AS area_name"
+    $sql = "SELECT dt.*, a.code AS area_code, a.name AS area_name,"
+          . " o.id AS open_order_id"
           . " FROM dining_tables dt"
           . " JOIN areas a ON a.id=dt.area_id"
+          . " LEFT JOIN orders o ON o.table_id = dt.id AND o.status='open'"
           . " WHERE 1=1";
     $args = [];
     if ($areaId) { $sql .= " AND dt.area_id=?"; $args[] = (int)$areaId; }
