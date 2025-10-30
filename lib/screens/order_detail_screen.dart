@@ -738,10 +738,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         return;
       }
       setState(() {
-        _selectedDiscount = discount;
-        final exists =
-            _availableDiscounts.any((existing) => existing.id == discount.id);
-        if (!exists) {
+        final existingIndex =
+            _availableDiscounts.indexWhere((existing) => existing.id == discount.id);
+        if (existingIndex != -1) {
+          _selectedDiscount = _availableDiscounts[existingIndex];
+        } else {
+          _selectedDiscount = discount;
           final updated = [..._availableDiscounts, discount];
           updated.sort((a, b) => a.label.compareTo(b.label));
           _availableDiscounts = updated;
