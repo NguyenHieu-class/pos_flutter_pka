@@ -875,7 +875,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           : Column(
               children: [
                 Expanded(child: buildMenuSection(false)),
-                SizedBox(height: 360, child: buildOrderSection()),
+                Expanded(child: buildOrderSection()),
               ],
             ),
     );

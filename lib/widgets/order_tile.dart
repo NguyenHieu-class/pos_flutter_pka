@@ -23,27 +23,70 @@ class OrderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          child: Text(quantity.toString()),
+    final theme = Theme.of(context);
+    final children = <Widget>[];
+
+    if (subtitle != null && subtitle!.isNotEmpty) {
+      children.add(Text(subtitle!));
+    }
+    if (modifiers.isNotEmpty) {
+      children.add(
+        Text(
+          'Topping: ${modifiers.map((m) => m.name).join(', ')}',
+          style: theme.textTheme.bodySmall,
         ),
-        title: Text(title),
-        subtitle: Column(
+      );
+    }
+    if (note != null && note!.isNotEmpty) {
+      children.add(
+        Text(
+          'Ghi chú: $note',
+          style: theme.textTheme.bodySmall,
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (subtitle != null && subtitle!.isNotEmpty)
-              Text(subtitle!),
-            if (modifiers.isNotEmpty)
-              Text(
-                'Topping: ${modifiers.map((m) => m.name).join(', ')}',
-                style: Theme.of(context).textTheme.bodySmall,
+            CircleAvatar(
+              child: Text(quantity.toString()),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: theme.textTheme.titleMedium),
+                  if (children.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    ...List.generate(children.length, (index) {
+                      final widget = children[index];
+                      final isLast = index == children.length - 1;
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: isLast ? 0 : 2),
+                        child: widget,
+                      );
+                    }),
+                  ],
+                ],
               ),
-            if (note != null && note!.isNotEmpty)
-              Text('Ghi chú: $note', style: Theme.of(context).textTheme.bodySmall),
+            ),
+            if (trailing != null) ...[
+              const SizedBox(width: 12),
+              Flexible(
+                fit: FlexFit.loose,
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: trailing!,
+                ),
+              ),
+            ],
           ],
         ),
-        trailing: trailing,
       ),
     );
   }
