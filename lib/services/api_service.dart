@@ -104,6 +104,33 @@ class ApiService {
     return _handleResponse(fullResponse);
   }
 
+  Future<dynamic> uploadFile(
+    String endpoint, {
+    required String fieldName,
+    required List<int> bytes,
+    required String filename,
+    Map<String, String>? fields,
+    bool auth = true,
+  }) async {
+    final uri = _buildUri(endpoint);
+    debugPrint('UPLOAD $uri file: $filename');
+    final request = http.MultipartRequest('POST', uri);
+    final headers = _buildHeaders(auth: auth);
+    headers.remove('Content-Type');
+    request.headers.addAll(headers);
+    if (fields != null) {
+      request.fields.addAll(fields);
+    }
+    request.files.add(http.MultipartFile.fromBytes(
+      fieldName,
+      bytes,
+      filename: filename,
+    ));
+    final response = await request.send();
+    final fullResponse = await http.Response.fromStream(response);
+    return _handleResponse(fullResponse);
+  }
+
   Future<dynamic> _handleResponse(http.Response response) async {
     debugPrint('Response ${response.statusCode}: ${response.body}');
     final decoded = response.body.isEmpty ? null : jsonDecode(response.body);

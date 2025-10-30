@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/area.dart';
 import '../models/category.dart';
 import '../models/item.dart';
 import '../models/modifier.dart';
@@ -15,25 +16,126 @@ class OrderService {
 
   final ApiService _api = ApiService.instance;
 
-  Future<List<Map<String, dynamic>>> fetchAreas() async {
+  Future<List<Area>> fetchAreas() async {
     final response = await _api.get('/areas');
     if (response is List) {
-      return response.cast<Map<String, dynamic>>();
+      return response
+          .map((item) => Area.fromJson(item as Map<String, dynamic>))
+          .toList();
     }
     throw ApiException('Không lấy được danh sách khu vực');
   }
 
-  Future<List<DiningTable>> fetchTables({required int areaId, String? status}) async {
-    final response = await _api.get('/tables', query: {
-      'area_id': areaId.toString(),
-      if (status != null) 'status': status,
+  Future<int> createArea({required String name, String? code, int? sort, String? imagePath}) async {
+    final response = await _api.post('/areas', {
+      'name': name,
+      if (code != null && code.isNotEmpty) 'code': code,
+      if (sort != null) 'sort': sort,
+      if (imagePath != null && imagePath.isNotEmpty) 'image_path': imagePath,
     });
+    if (response is Map<String, dynamic>) {
+      final id = response['id'];
+      if (id is int) return id;
+      if (id is String) {
+        final parsed = int.tryParse(id);
+        if (parsed != null) return parsed;
+      }
+    }
+    throw ApiException('Không thể tạo khu vực');
+  }
+
+  Future<void> updateArea({
+    required int id,
+    required String name,
+    String? code,
+    int? sort,
+    String? imagePath,
+  }) async {
+    await _api.put('/areas/$id', {
+      'name': name,
+      if (code != null) 'code': code.isEmpty ? null : code,
+      if (sort != null) 'sort': sort,
+      if (imagePath != null) 'image_path': imagePath.isEmpty ? null : imagePath,
+    });
+  }
+
+  Future<void> deleteArea(int id) async {
+    await _api.delete('/areas/$id');
+  }
+
+  Future<void> setAreaImage({
+    required int areaId,
+    required int mediaId,
+    String? imagePath,
+  }) async {
+    await _api.post('/areas/$areaId/image', {
+      'media_id': mediaId,
+      if (imagePath != null && imagePath.isNotEmpty) 'image_path': imagePath,
+    });
+  }
+
+  Future<List<DiningTable>> fetchTables({int? areaId, String? status}) async {
+    final query = <String, String>{
+      if (areaId != null) 'area_id': areaId.toString(),
+      if (status != null) 'status': status,
+    };
+    final response = await _api.get('/tables', query: query.isEmpty ? null : query);
     if (response is List) {
       return response
           .map((item) => DiningTable.fromJson(item as Map<String, dynamic>))
           .toList();
     }
     throw ApiException('Không lấy được danh sách bàn');
+  }
+
+  Future<int> createTable({
+    required int areaId,
+    required String name,
+    String? code,
+    int? number,
+    int? capacity,
+    String status = 'free',
+  }) async {
+    final response = await _api.post('/tables', {
+      'area_id': areaId,
+      'name': name,
+      if (code != null && code.isNotEmpty) 'code': code,
+      if (number != null) 'number': number,
+      if (capacity != null) 'capacity': capacity,
+      if (status.isNotEmpty) 'status': status,
+    });
+    if (response is Map<String, dynamic>) {
+      final id = response['id'];
+      if (id is int) return id;
+      if (id is String) {
+        final parsed = int.tryParse(id);
+        if (parsed != null) return parsed;
+      }
+    }
+    throw ApiException('Không thể tạo bàn mới');
+  }
+
+  Future<void> updateTable({
+    required int id,
+    required int areaId,
+    required String name,
+    String? code,
+    int? number,
+    int? capacity,
+    String status = 'free',
+  }) async {
+    await _api.put('/tables/$id', {
+      'area_id': areaId,
+      'name': name,
+      if (code != null) 'code': code.isEmpty ? null : code,
+      if (number != null) 'number': number,
+      if (capacity != null) 'capacity': capacity,
+      if (status.isNotEmpty) 'status': status,
+    });
+  }
+
+  Future<void> deleteTable(int id) async {
+    await _api.delete('/tables/$id');
   }
 
   Future<Order> createOrder({required int tableId, String? customerName}) async {
@@ -153,6 +255,7 @@ class OrderService {
     double? taxRate,
     bool enabled = true,
     int? stationId,
+    String? imagePath,
   }) async {
     final response = await _api.post('/items', {
       'name': name,
@@ -163,6 +266,7 @@ class OrderService {
       'tax_rate': taxRate ?? 0,
       'enabled': enabled ? 1 : 0,
       if (stationId != null) 'station_id': stationId,
+      if (imagePath != null && imagePath.isNotEmpty) 'image_path': imagePath,
     });
     if (response is Map<String, dynamic>) {
       final id = response['id'];
@@ -185,6 +289,7 @@ class OrderService {
     double? taxRate,
     bool enabled = true,
     int? stationId,
+    String? imagePath,
   }) async {
     await _api.put('/items/$id', {
       'name': name,
@@ -196,6 +301,7 @@ class OrderService {
       'tax_rate': taxRate ?? 0,
       'enabled': enabled ? 1 : 0,
       if (stationId != null) 'station_id': stationId,
+      if (imagePath != null) 'image_path': imagePath.isEmpty ? null : imagePath,
     });
   }
 
@@ -271,5 +377,38 @@ class OrderService {
       return response;
     }
     throw ApiException('Không lấy được chi tiết hóa đơn');
+  }
+
+  Future<Map<String, dynamic>> uploadItemImage(List<int> bytes, String filename) async {
+    final response = await _api.uploadFile(
+      '/uploads/items',
+      fieldName: 'file',
+      bytes: bytes,
+      filename: filename,
+    );
+    if (response is Map<String, dynamic>) {
+      return response;
+    }
+    throw ApiException('Không thể tải ảnh món ăn');
+  }
+
+  Future<Map<String, dynamic>> uploadAreaImage(List<int> bytes, String filename) async {
+    final response = await _api.uploadFile(
+      '/uploads/areas',
+      fieldName: 'file',
+      bytes: bytes,
+      filename: filename,
+    );
+    if (response is Map<String, dynamic>) {
+      return response;
+    }
+    throw ApiException('Không thể tải ảnh khu vực');
+  }
+
+  Future<void> setItemImage({required int itemId, required int mediaId, String? imagePath}) async {
+    await _api.post('/items/$itemId/image', {
+      'media_id': mediaId,
+      if (imagePath != null && imagePath.isNotEmpty) 'image_path': imagePath,
+    });
   }
 }

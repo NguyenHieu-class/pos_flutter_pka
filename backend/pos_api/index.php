@@ -64,7 +64,20 @@ try {
 
   // ========== AREAS & TABLES ==========
   if ($path === '/v1/areas' && $method==='GET')  return TablesController::areas();
+  if ($path === '/v1/areas' && $method==='POST') return TablesController::createArea();
+  if (preg_match('#^/v1/areas/(\\d+)$#',$path,$m)) {
+    if ($method==='PUT')    return TablesController::updateArea((int)$m[1]);
+    if ($method==='DELETE') return TablesController::deleteArea((int)$m[1]);
+  }
+  if (preg_match('#^/v1/areas/(\\d+)/image$#',$path,$m) && $method==='POST')
+    return TablesController::setAreaImage((int)$m[1]);
+
   if ($path === '/v1/tables' && $method==='GET') return TablesController::tables();
+  if ($path === '/v1/tables' && $method==='POST') return TablesController::createTable();
+  if (preg_match('#^/v1/tables/(\\d+)$#',$path,$m)) {
+    if ($method==='PUT')    return TablesController::updateTable((int)$m[1]);
+    if ($method==='DELETE') return TablesController::deleteTable((int)$m[1]);
+  }
   if (preg_match('#^/v1/tables/(\\d+)/status$#',$path,$m) && $method==='PUT') return TablesController::setStatus((int)$m[1]);
 
   // ========== ORDERS ==========

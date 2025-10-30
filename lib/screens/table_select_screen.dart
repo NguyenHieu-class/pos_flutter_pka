@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/area.dart';
 import '../models/table.dart';
 import '../services/api_service.dart';
 import '../services/order_service.dart';
@@ -16,7 +17,7 @@ class TableSelectScreen extends StatefulWidget {
 
 class _TableSelectScreenState extends State<TableSelectScreen> {
   final _orderService = OrderService.instance;
-  List<Map<String, dynamic>> _areas = const [];
+  List<Area> _areas = const [];
   int? _selectedAreaId;
   late Future<List<DiningTable>> _tablesFuture = Future.value(const []);
   final _customerController = TextEditingController();
@@ -39,7 +40,7 @@ class _TableSelectScreenState extends State<TableSelectScreen> {
       setState(() {
         _areas = areas;
         if (areas.isNotEmpty) {
-          _selectedAreaId = areas.first['id'] as int?;
+          _selectedAreaId = areas.first.id;
           _tablesFuture = _orderService.fetchTables(
             areaId: _selectedAreaId!,
             status: 'free',
@@ -129,11 +130,11 @@ class _TableSelectScreenState extends State<TableSelectScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               scrollDirection: Axis.horizontal,
               children: _areas.map((area) {
-                final id = area['id'] as int? ?? 0;
+                final id = area.id;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
-                    label: Text(area['name']?.toString() ?? 'Khu $id'),
+                    label: Text(area.displayLabel),
                     selected: _selectedAreaId == id,
                     onSelected: (_) => _onAreaSelected(id),
                   ),

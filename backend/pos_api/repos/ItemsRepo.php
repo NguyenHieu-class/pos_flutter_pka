@@ -40,6 +40,9 @@ class ItemsRepo {
   public static function delete(int $id) {
     pdo()->prepare("DELETE FROM items WHERE id=?")->execute([$id]);
   }
+  public static function updateImagePath(int $id, ?string $path) {
+    pdo()->prepare("UPDATE items SET image_path=? WHERE id=?")->execute([$path, $id]);
+  }
   public static function modifiersForItem(int $itemId) {
     $sql="SELECT mg.id group_id, mg.name group_name, mg.min_select, mg.max_select, mg.required, mg.sort group_sort,
                  mo.id option_id, mo.name option_name, mo.price_delta, mo.allow_qty, mo.max_qty, mo.is_default, mo.sort option_sort
