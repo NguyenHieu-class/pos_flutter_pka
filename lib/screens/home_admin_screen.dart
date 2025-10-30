@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
 import '../services/order_service.dart';
 import '../utils/json_utils.dart';
+import 'admin_users_screen.dart';
 import 'categories_screen.dart';
 import 'items_screen.dart';
 import 'login_screen.dart';
@@ -96,6 +97,17 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => const ItemsScreen(),
+                      ),
+                    ),
+                  ),
+                  _AdminActionCard(
+                    title: 'Nhân viên',
+                    icon: Icons.group_outlined,
+                    color: colorScheme.primary,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AdminUsersScreen(),
                       ),
                     ),
                   ),
