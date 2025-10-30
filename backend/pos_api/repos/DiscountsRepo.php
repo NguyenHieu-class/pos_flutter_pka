@@ -90,6 +90,16 @@ class DiscountsRepo {
     return $s->fetch();
   }
 
+  public static function findActiveByCode(string $code) {
+    $now = date('Y-m-d H:i:s');
+    $sql = "SELECT * FROM discounts WHERE code IS NOT NULL AND UPPER(code)=? AND active=1";
+    $sql .= " AND (starts_at IS NULL OR starts_at <= ?)";
+    $sql .= " AND (ends_at IS NULL OR ends_at >= ?)";
+    $s = pdo()->prepare($sql);
+    $s->execute([strtoupper($code), $now, $now]);
+    return $s->fetch();
+  }
+
   public static function usageHistory(array $filters = []): array {
     $sql = "SELECT od.*, o.code AS order_code, o.total, o.closed_at
             FROM order_discounts od
