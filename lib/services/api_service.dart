@@ -43,7 +43,7 @@ class ApiService {
     bool auth = true,
     Map<String, String>? headers,
   }) async {
-    final uri = Uri.parse('$apiBase$endpoint').replace(queryParameters: query);
+    final uri = _buildUri(endpoint, query: query);
     debugPrint('GET $uri');
     final response = await _client.get(
       uri,
@@ -58,7 +58,7 @@ class ApiService {
     Map<String, String>? headers,
     bool auth = true,
   }) async {
-    final uri = Uri.parse('$apiBase$endpoint');
+    final uri = _buildUri(endpoint);
     debugPrint('POST $uri body: $body');
     final response = await _client.post(
       uri,
@@ -74,7 +74,7 @@ class ApiService {
     Map<String, String>? headers,
     bool auth = true,
   }) async {
-    final uri = Uri.parse('$apiBase$endpoint');
+    final uri = _buildUri(endpoint);
     debugPrint('PUT $uri body: $body');
     final response = await _client.put(
       uri,
@@ -90,7 +90,7 @@ class ApiService {
     Map<String, String>? headers,
     bool auth = true,
   }) async {
-    final uri = Uri.parse('$apiBase$endpoint');
+    final uri = _buildUri(endpoint);
     debugPrint('DELETE $uri body: $body');
     final request = http.Request('DELETE', uri)
       ..headers.addAll(_buildHeaders(auth: auth, additional: headers));
@@ -132,6 +132,32 @@ class ApiService {
           message;
     }
     throw ApiException(message, statusCode: response.statusCode);
+  }
+
+  Uri _buildUri(
+    String endpoint, {
+    Map<String, dynamic>? query,
+  }) {
+    final url = _resolveUrl(endpoint);
+    final uri = Uri.parse(url);
+    return query == null ? uri : uri.replace(queryParameters: query);
+  }
+
+  String _resolveUrl(String endpoint) {
+    if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+      return endpoint;
+    }
+    final base = apiBase.endsWith('/')
+        ? apiBase.substring(0, apiBase.length - 1)
+        : apiBase;
+    final version = apiVersionPath.isEmpty
+        ? ''
+        : (apiVersionPath.startsWith('/')
+            ? apiVersionPath
+            : '/$apiVersionPath');
+    final normalizedEndpoint =
+        endpoint.startsWith('/') ? endpoint : '/$endpoint';
+    return '$base$version$normalizedEndpoint';
   }
 }
 
