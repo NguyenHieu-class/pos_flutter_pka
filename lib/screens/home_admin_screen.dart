@@ -11,6 +11,7 @@ import 'login_screen.dart';
 import 'receipts_screen.dart';
 import 'areas_screen.dart';
 import 'tables_screen.dart';
+import 'toppings_screen.dart';
 
 /// Home screen for the admin role with access to reports and management modules.
 class HomeAdminScreen extends StatefulWidget {
@@ -99,6 +100,17 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => const ItemsScreen(),
+                      ),
+                    ),
+                  ),
+                  _AdminActionCard(
+                    title: 'Topping',
+                    icon: Icons.icecream_outlined,
+                    color: colorScheme.primaryContainer,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ToppingsScreen(),
                       ),
                     ),
                   ),

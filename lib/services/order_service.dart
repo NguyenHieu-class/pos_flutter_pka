@@ -4,6 +4,7 @@ import '../models/area.dart';
 import '../models/category.dart';
 import '../models/item.dart';
 import '../models/modifier.dart';
+import '../models/modifier_group.dart';
 import '../models/order.dart';
 import '../models/table.dart';
 import 'api_service.dart';
@@ -201,25 +202,13 @@ class OrderService {
     throw ApiException('Không lấy được món ăn');
   }
 
-  Future<List<Modifier>> fetchItemModifiers(int itemId) async {
+  Future<List<ModifierGroup>> fetchItemModifiers(int itemId) async {
     final response = await _api.get('/items/$itemId/modifiers');
     if (response is List) {
-      final modifiers = <Modifier>[];
-      for (final group in response) {
-        if (group is! Map<String, dynamic>) continue;
-        final options = group['options'];
-        if (options is! List) continue;
-        for (final option in options) {
-          if (option is Map<String, dynamic>) {
-            modifiers.add(Modifier.fromJson({
-              ...option,
-              'group_id': group['group_id'],
-              'group_name': group['name'],
-            }));
-          }
-        }
-      }
-      return modifiers;
+      return response
+          .whereType<Map<String, dynamic>>()
+          .map(ModifierGroup.fromJson)
+          .toList();
     }
     throw ApiException('Không lấy được topping');
   }

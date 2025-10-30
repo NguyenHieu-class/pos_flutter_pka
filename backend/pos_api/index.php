@@ -15,6 +15,7 @@ require_once __DIR__ . '/controllers/KitchenController.php';
 require_once __DIR__ . '/controllers/AdminReceiptsController.php';
 require_once __DIR__ . '/controllers/AdminUsersController.php';
 require_once __DIR__ . '/controllers/UploadsController.php';
+require_once __DIR__ . '/controllers/ModifiersController.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 
@@ -61,6 +62,26 @@ try {
   if (preg_match('#^/v1/items/(\\d+)$#',$path,$m) && $method==='DELETE') return ItemsController::delete((int)$m[1]);
   if (preg_match('#^/v1/items/(\\d+)/modifiers$#',$path,$m) && $method==='GET') return ItemsController::modifiers((int)$m[1]);
   if (preg_match('#^/v1/items/(\\d+)/image$#',$path,$m) && $method==='POST') return ItemsController::setImage((int)$m[1]);
+
+  // ========== MODIFIERS (ADMIN) ==========
+  if ($path === '/v1/admin/modifier-groups' && $method==='GET') return ModifiersController::groups();
+  if ($path === '/v1/admin/modifier-groups' && $method==='POST') return ModifiersController::createGroup();
+  if (preg_match('#^/v1/admin/modifier-groups/(\\d+)$#',$path,$m)) {
+    if ($method==='PUT') return ModifiersController::updateGroup((int)$m[1]);
+    if ($method==='DELETE') return ModifiersController::deleteGroup((int)$m[1]);
+  }
+  if (preg_match('#^/v1/admin/modifier-groups/(\\d+)/options$#',$path,$m)) {
+    if ($method==='GET') return ModifiersController::options((int)$m[1]);
+    if ($method==='POST') return ModifiersController::createOption((int)$m[1]);
+  }
+  if (preg_match('#^/v1/admin/modifier-options/(\\d+)$#',$path,$m)) {
+    if ($method==='PUT') return ModifiersController::updateOption((int)$m[1]);
+    if ($method==='DELETE') return ModifiersController::deleteOption((int)$m[1]);
+  }
+  if (preg_match('#^/v1/admin/items/(\\d+)/modifier-groups$#',$path,$m)) {
+    if ($method==='GET') return ModifiersController::itemGroups((int)$m[1]);
+    if ($method==='PUT') return ModifiersController::setItemGroups((int)$m[1]);
+  }
 
   // ========== AREAS & TABLES ==========
   if ($path === '/v1/areas' && $method==='GET')  return TablesController::areas();

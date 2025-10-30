@@ -6,8 +6,10 @@ import 'package:intl/intl.dart';
 
 import '../models/category.dart';
 import '../models/item.dart';
+import '../models/modifier_group.dart';
 import '../services/api_service.dart';
 import '../services/order_service.dart';
+import '../services/modifier_service.dart';
 
 /// Screen displaying menu items and allowing filtering by category.
 class ItemsScreen extends StatefulWidget {
@@ -19,6 +21,7 @@ class ItemsScreen extends StatefulWidget {
 
 class _ItemsScreenState extends State<ItemsScreen> {
   final _orderService = OrderService.instance;
+  final _modifierService = ModifierService.instance;
   late Future<List<MenuItem>> _itemsFuture;
   List<Category> _categories = const [];
   Category? _selectedCategory;
@@ -486,6 +489,156 @@ class _ItemsScreenState extends State<ItemsScreen> {
     }
   }
 
+  Future<void> _manageItemToppings(MenuItem item) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final groups = await _modifierService.fetchGroups();
+      if (!mounted) return;
+      if (groups.isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Chưa có nhóm topping. Vui lòng tạo trong mục Topping.')),
+        );
+        return;
+      }
+      final assignedIds = await _modifierService.fetchItemGroupIds(item.id);
+      if (!mounted) return;
+      final selected = assignedIds.toSet();
+
+      final saved = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        builder: (context) {
+          bool isSaving = false;
+          return StatefulBuilder(
+            builder: (context, setStateSheet) {
+              Future<void> submit() async {
+                setStateSheet(() => isSaving = true);
+                try {
+                  final orderedIds = groups
+                      .where((group) => selected.contains(group.id))
+                      .map((group) => group.id)
+                      .toList();
+                  await _modifierService.updateItemGroups(
+                    itemId: item.id,
+                    groupIds: orderedIds,
+                  );
+                  if (context.mounted) Navigator.pop(context, true);
+                } on ApiException catch (error) {
+                  messenger.showSnackBar(
+                    SnackBar(content: Text(error.message)),
+                  );
+                } catch (error) {
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('Không thể lưu topping: $error')),
+                  );
+                } finally {
+                  if (context.mounted) {
+                    setStateSheet(() => isSaving = false);
+                  }
+                }
+              }
+
+              String _groupDescription(ModifierGroup group) {
+                final parts = <String>[];
+                parts.add('Tối thiểu ${group.minSelect}');
+                if (group.maxSelect != null && group.maxSelect! > 0) {
+                  parts.add('Tối đa ${group.maxSelect}');
+                } else {
+                  parts.add('Không giới hạn');
+                }
+                if (group.required) {
+                  parts.add('Bắt buộc');
+                }
+                return parts.join(' • ');
+              }
+
+              return SafeArea(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom,
+                  ),
+                  child: FractionallySizedBox(
+                    heightFactor: 0.7,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Gán topping cho ${item.name}',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Chọn các nhóm topping áp dụng cho món',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: groups.length,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            itemBuilder: (context, index) {
+                              final group = groups[index];
+                              return Card(
+                                child: CheckboxListTile(
+                                  value: selected.contains(group.id),
+                                  onChanged: isSaving
+                                      ? null
+                                      : (value) => setStateSheet(() {
+                                            if (value == true) {
+                                              selected.add(group.id);
+                                            } else {
+                                              selected.remove(group.id);
+                                            }
+                                          }),
+                                  title: Text(group.name),
+                                  subtitle: Text(_groupDescription(group)),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: isSaving ? null : submit,
+                              icon: const Icon(Icons.save_outlined),
+                              label: Text(isSaving ? 'Đang lưu...' : 'Lưu thay đổi'),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+
+      if (saved == true && mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Đã cập nhật topping cho món ${item.name}')),
+        );
+      }
+    } on ApiException catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Không thể tải danh sách topping: $error')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -671,10 +824,12 @@ class _ItemsScreenState extends State<ItemsScreen> {
                                 _deleteItem(item);
                               } else if (value == 'toggle') {
                                 _toggleItemStatus(item);
+                              } else if (value == 'toppings') {
+                                _manageItemToppings(item);
                               }
                             },
-                            itemBuilder: (context) => const [
-                              PopupMenuItem(
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
                                 value: 'edit',
                                 child: ListTile(
                                   dense: true,
@@ -682,7 +837,15 @@ class _ItemsScreenState extends State<ItemsScreen> {
                                   title: Text('Chỉnh sửa'),
                                 ),
                               ),
-                            PopupMenuItem(
+                              const PopupMenuItem(
+                                value: 'toppings',
+                                child: ListTile(
+                                  dense: true,
+                                  leading: Icon(Icons.icecream_outlined),
+                                  title: Text('Quản lý topping'),
+                                ),
+                              ),
+                              const PopupMenuItem(
                                 value: 'toggle',
                                 child: ListTile(
                                   dense: true,
@@ -690,7 +853,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
                                   title: Text('Đổi trạng thái'),
                                 ),
                               ),
-                              PopupMenuItem(
+                              const PopupMenuItem(
                                 value: 'delete',
                                 child: ListTile(
                                   dense: true,
