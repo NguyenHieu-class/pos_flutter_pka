@@ -3,10 +3,13 @@ class DiningTable {
   DiningTable({
     required this.id,
     required this.name,
+    this.code,
+    this.number,
     this.areaId,
     this.areaName,
     this.status,
     this.capacity,
+    this.imageUrl,
   });
 
   factory DiningTable.fromJson(Map<String, dynamic> json) {
@@ -19,17 +22,23 @@ class DiningTable {
     return DiningTable(
       id: json['id'] as int? ?? 0,
       name: name ?? code ?? fallbackName,
+      code: code,
+      number: int.tryParse(number ?? ''),
       areaId: json['area_id'] as int?,
       areaName: json['area_name'] as String?,
       status: json['status'] as String? ?? json['table_status'] as String?,
       capacity: json['capacity'] as int?,
+      imageUrl: json['image_url'] as String?,
     );
   }
 
   final int id;
   final String name;
+  final String? code;
+  final int? number;
   final int? areaId;
   final String? areaName;
   final String? status;
   final int? capacity;
+  final String? imageUrl;
 }

@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../models/category.dart';
@@ -80,7 +83,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
   Future<void> _showItemDialog({MenuItem? item}) async {
     if (_categories.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng tạo danh mục trước')), 
+        const SnackBar(content: Text('Vui lòng tạo danh mục trước')),
       );
       return;
     }
@@ -95,6 +98,10 @@ class _ItemsScreenState extends State<ItemsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     int? selectedCategoryId = item?.categoryId ?? _categories.first.id;
     bool enabled = item?.enabled ?? true;
+    final picker = ImagePicker();
+    XFile? selectedImage;
+    Uint8List? previewBytes;
+    String? previewUrl = item?.imageUrl;
 
     final shouldReload = await showDialog<bool>(
       context: context,
@@ -113,6 +120,69 @@ class _ItemsScreenState extends State<ItemsScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: SizedBox(
+                              width: 96,
+                              height: 96,
+                              child: previewBytes != null
+                                  ? Image.memory(previewBytes!, fit: BoxFit.cover)
+                                  : previewUrl != null
+                                      ? Image.network(previewUrl!, fit: BoxFit.cover)
+                                      : Container(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surfaceVariant,
+                                          child: const Icon(Icons.image, size: 40),
+                                        ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                TextButton.icon(
+                                  onPressed: isSubmitting
+                                      ? null
+                                      : () async {
+                                          try {
+                                            final file = await picker.pickImage(
+                                              source: ImageSource.gallery,
+                                              imageQuality: 85,
+                                            );
+                                            if (file == null) return;
+                                            final bytes = await file.readAsBytes();
+                                            setStateDialog(() {
+                                              selectedImage = file;
+                                              previewBytes = bytes;
+                                              previewUrl = null;
+                                            });
+                                          } catch (error) {
+                                            messenger.showSnackBar(
+                                              SnackBar(content: Text('Không thể chọn ảnh: $error')),
+                                            );
+                                          }
+                                        },
+                                  icon: const Icon(Icons.photo_library_outlined),
+                                  label: Text(previewBytes == null && previewUrl == null
+                                      ? 'Chọn ảnh đại diện'
+                                      : 'Đổi ảnh'),
+                                ),
+                                if (previewBytes != null || previewUrl != null)
+                                  Text(
+                                    'Ảnh sẽ hiển thị trong danh sách món ăn',
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                       DropdownButtonFormField<int>(
                         value: selectedCategoryId,
                         items: _categories
@@ -231,15 +301,39 @@ class _ItemsScreenState extends State<ItemsScreen> {
                           }
                           setStateDialog(() => isSubmitting = true);
                           try {
+                            Map<String, dynamic>? uploadResult;
+                            if (selectedImage != null) {
+                              final bytes = previewBytes ??
+                                  await selectedImage!.readAsBytes();
+                              uploadResult = await _orderService.uploadItemImage(
+                                bytes,
+                                selectedImage!.name,
+                              );
+                            }
+                            final imagePath = uploadResult?['path'] as String?;
                             if (item == null) {
-                              await _orderService.createItem(
+                              final newItemId = await _orderService.createItem(
                                 name: nameController.text.trim(),
                                 price: price,
                                 categoryId: categoryId,
                                 description: descriptionController.text.trim(),
                                 sku: skuController.text.trim(),
                                 enabled: enabled,
+                                imagePath: imagePath,
                               );
+                              if (uploadResult != null) {
+                                final mediaIdRaw = uploadResult['media_id'];
+                                final mediaId = mediaIdRaw is int
+                                    ? mediaIdRaw
+                                    : int.tryParse(mediaIdRaw?.toString() ?? '');
+                                if (mediaId != null) {
+                                  await _orderService.setItemImage(
+                                    itemId: newItemId,
+                                    mediaId: mediaId,
+                                    imagePath: uploadResult['path'] as String?,
+                                  );
+                                }
+                              }
                               messenger.showSnackBar(
                                 const SnackBar(
                                     content: Text('Đã thêm món mới thành công')),
@@ -255,10 +349,24 @@ class _ItemsScreenState extends State<ItemsScreen> {
                                 enabled: enabled,
                                 taxRate: item.taxRate,
                                 stationId: item.stationId,
+                                imagePath: imagePath,
                               );
+                              if (uploadResult != null) {
+                                final mediaIdRaw = uploadResult['media_id'];
+                                final mediaId = mediaIdRaw is int
+                                    ? mediaIdRaw
+                                    : int.tryParse(mediaIdRaw?.toString() ?? '');
+                                if (mediaId != null) {
+                                  await _orderService.setItemImage(
+                                    itemId: item.id,
+                                    mediaId: mediaId,
+                                    imagePath: uploadResult['path'] as String?,
+                                  );
+                                }
+                              }
                               messenger.showSnackBar(
                                 const SnackBar(
-                                    content: Text('Đã cập nhật món ăn')), 
+                                    content: Text('Đã cập nhật món ăn')),
                               );
                             }
                             if (Navigator.of(dialogContext).canPop()) {
@@ -513,6 +621,24 @@ class _ItemsScreenState extends State<ItemsScreen> {
                       final statusText = item.enabled ? 'Đang bán' : 'Ngưng bán';
                       return Card(
                         child: ListTile(
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: SizedBox(
+                              width: 56,
+                              height: 56,
+                              child: item.imageUrl != null
+                                  ? Image.network(
+                                      item.imageUrl!,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Container(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .surfaceVariant,
+                                      child: const Icon(Icons.fastfood_outlined),
+                                    ),
+                            ),
+                          ),
                           title: Text(item.name),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

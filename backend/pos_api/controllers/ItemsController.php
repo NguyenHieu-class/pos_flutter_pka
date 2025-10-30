@@ -78,6 +78,9 @@ class ItemsController {
     $b = $_POST + (input_json() ?: []);
     require_fields($b, ['media_id']);
     MediaRepo::setPrimary('item', (int)$id, (int)$b['media_id'], 'primary');
+    if (isset($b['image_path'])) {
+      ItemsRepo::updateImagePath((int)$id, $b['image_path'] ?: null);
+    }
     json_ok(['item_id'=>(int)$id, 'media_id'=>(int)$b['media_id']]);
   }
 }
