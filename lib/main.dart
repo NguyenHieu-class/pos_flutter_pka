@@ -14,6 +14,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('vi_VN', null);
   Intl.defaultLocale = 'vi_VN';
+  await AuthService.instance.loadSavedSession();
   runApp(const POSApp());
 }
 
@@ -27,12 +28,10 @@ class POSApp extends StatefulWidget {
 
 class _POSAppState extends State<POSApp> {
   final _authService = AuthService.instance;
-  late Future<User?> _sessionFuture;
 
   @override
   void initState() {
     super.initState();
-    _sessionFuture = _authService.loadSavedSession();
     _authService.onSessionExpired = _handleSessionExpired;
   }
 
@@ -68,30 +67,20 @@ class _POSAppState extends State<POSApp> {
       debugShowCheckedModeBanner: false,
       theme: theme,
       navigatorKey: rootNavigatorKey,
-      home: FutureBuilder<User?>(
-        future: _sessionFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
+      home: ValueListenableBuilder<User?>(
+        valueListenable: _authService.currentUser,
+        builder: (context, user, _) {
+          if (user == null) {
+            return const LoginScreen();
           }
-          return ValueListenableBuilder<User?>(
-            valueListenable: _authService.currentUser,
-            builder: (context, user, _) {
-              if (user == null) {
-                return const LoginScreen();
-              }
-              switch (user.role) {
-                case 'admin':
-                  return const HomeAdminScreen();
-                case 'kitchen':
-                  return const HomeKitchenScreen();
-                default:
-                  return const HomeCashierScreen();
-              }
-            },
-          );
+          switch (user.role) {
+            case 'admin':
+              return const HomeAdminScreen();
+            case 'kitchen':
+              return const HomeKitchenScreen();
+            default:
+              return const HomeCashierScreen();
+          }
         },
       ),
     );

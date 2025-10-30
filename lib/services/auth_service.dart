@@ -19,12 +19,20 @@ class AuthService {
 
   static const _tokenKey = 'pos_token';
   static const _userKey = 'pos_user';
+  Future<User?>? _sessionLoadFuture;
 
   /// Optional callback to be invoked when the current session is invalidated
   /// by the backend (e.g. expired token).
   Future<void> Function()? onSessionExpired;
 
-  Future<User?> loadSavedSession() async {
+  Future<User?> loadSavedSession({bool forceRefresh = false}) {
+    if (forceRefresh) {
+      _sessionLoadFuture = null;
+    }
+    return _sessionLoadFuture ??= _restoreSessionFromStorage();
+  }
+
+  Future<User?> _restoreSessionFromStorage() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(_tokenKey);
     final userJson = prefs.getString(_userKey);
@@ -65,6 +73,7 @@ class AuthService {
     final user = User.fromJson(userMap, token: token);
     await _persistSession(user);
     _applySession(user);
+    _sessionLoadFuture = Future.value(user);
     return user;
   }
 
@@ -74,6 +83,7 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_userKey);
+    _sessionLoadFuture = Future.value(null);
   }
 
   Future<void> _persistSession(User user) async {
