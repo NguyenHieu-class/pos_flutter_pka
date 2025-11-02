@@ -56,7 +56,7 @@ class HomeCashierScreen extends StatelessWidget {
             _CashierActionCard(
               title: 'Danh sách order',
               icon: Icons.receipt_long_outlined,
-              color: colorScheme.primaryContainer,
+              color: colorScheme.primary,
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -67,7 +67,7 @@ class HomeCashierScreen extends StatelessWidget {
             _CashierActionCard(
               title: 'Hàng đợi bếp',
               icon: Icons.kitchen_outlined,
-              color: colorScheme.secondary,
+              color: colorScheme.primary,
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -78,7 +78,7 @@ class HomeCashierScreen extends StatelessWidget {
             _CashierActionCard(
               title: 'Hóa đơn gần đây',
               icon: Icons.receipt_long,
-              color: colorScheme.tertiary,
+              color: colorScheme.primary,
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(

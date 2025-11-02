@@ -99,7 +99,7 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
                   _AdminActionCard(
                     title: 'Món ăn',
                     icon: Icons.restaurant_menu,
-                    color: colorScheme.secondary,
+                    color: colorScheme.primary,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -110,7 +110,7 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
                   _AdminActionCard(
                     title: 'Topping',
                     icon: Icons.icecream_outlined,
-                    color: colorScheme.primaryContainer,
+                    color: colorScheme.primary,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -121,7 +121,7 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
                   _AdminActionCard(
                     title: 'Khu bàn',
                     icon: Icons.layers_outlined,
-                    color: colorScheme.tertiary,
+                    color: colorScheme.primary,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -132,7 +132,7 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
                   _AdminActionCard(
                     title: 'Bàn ăn',
                     icon: Icons.table_bar,
-                    color: colorScheme.secondaryContainer,
+                    color: colorScheme.primary,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -154,7 +154,7 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
                   _AdminActionCard(
                     title: 'Hóa đơn',
                     icon: Icons.receipt_long,
-                    color: colorScheme.tertiary,
+                    color: colorScheme.primary,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -165,7 +165,7 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
                   _AdminActionCard(
                     title: 'Khuyến mãi',
                     icon: Icons.local_offer_outlined,
-                    color: colorScheme.primaryContainer,
+                    color: colorScheme.primary,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -176,7 +176,7 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
                   _AdminActionCard(
                     title: 'Báo cáo',
                     icon: Icons.analytics_outlined,
-                    color: colorScheme.secondary,
+                    color: colorScheme.primary,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -187,7 +187,7 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
                   _AdminActionCard(
                     title: 'Nhật ký',
                     icon: Icons.monitor_heart_outlined,
-                    color: colorScheme.tertiary,
+                    color: colorScheme.primary,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -198,7 +198,7 @@ class _HomeAdminScreenState extends State<HomeAdminScreen> {
                   _AdminActionCard(
                     title: 'Cài đặt',
                     icon: Icons.settings_applications_outlined,
-                    color: colorScheme.secondaryContainer,
+                    color: colorScheme.primary,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
