@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
@@ -25,6 +27,11 @@ class _HomeKitchenScreenState extends State<HomeKitchenScreen> {
   String? _queueError;
   String? _historyError;
 
+  Timer? _queueAutoRefreshTimer;
+  bool _autoRefreshEnabled = true;
+
+  static const Duration _autoRefreshInterval = Duration(seconds: 30);
+
   String? _selectedArea;
   String? _selectedTable;
   int? _selectedStation;
@@ -51,18 +58,23 @@ class _HomeKitchenScreenState extends State<HomeKitchenScreen> {
     super.initState();
     _refreshQueue();
     _refreshHistory();
+    if (_autoRefreshEnabled) {
+      _startQueueAutoRefresh();
+    }
   }
 
-  Future<void> _refreshQueue() async {
+  Future<void> _refreshQueue({bool showLoadingIndicator = true}) async {
     setState(() {
-      _queueLoading = true;
+      if (showLoadingIndicator) {
+        _queueLoading = true;
+      }
       _queueError = null;
     });
     try {
       final items = await _kitchenService.fetchKitchenQueue(filter: _buildFilter());
       if (!mounted) return;
       setState(() {
-        _queueTickets = items;
+        _queueTickets = _sortTicketsNewestFirst(items);
         _queueLoading = false;
       });
       _recomputeFilterOptions();
@@ -79,6 +91,35 @@ class _HomeKitchenScreenState extends State<HomeKitchenScreen> {
         _queueLoading = false;
       });
     }
+  }
+
+  void _startQueueAutoRefresh() {
+    _queueAutoRefreshTimer?.cancel();
+    if (!_autoRefreshEnabled) {
+      return;
+    }
+    _queueAutoRefreshTimer = Timer.periodic(_autoRefreshInterval, (_) {
+      if (!mounted || !_autoRefreshEnabled) return;
+      unawaited(_refreshQueue(showLoadingIndicator: false));
+    });
+  }
+
+  void _handleAutoRefreshChanged(bool value) {
+    setState(() {
+      _autoRefreshEnabled = value;
+    });
+    if (value) {
+      unawaited(_refreshQueue(showLoadingIndicator: false));
+      _startQueueAutoRefresh();
+    } else {
+      _queueAutoRefreshTimer?.cancel();
+    }
+  }
+
+  @override
+  void dispose() {
+    _queueAutoRefreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _refreshHistory() async {
@@ -188,6 +229,45 @@ class _HomeKitchenScreenState extends State<HomeKitchenScreen> {
           .toList()
         ..sort((a, b) => a.label.compareTo(b.label));
     });
+  }
+
+  List<KitchenTicket> _sortTicketsNewestFirst(List<KitchenTicket> tickets) {
+    final sorted = List<KitchenTicket>.from(tickets);
+    sorted.sort(_compareTicketsByTimeDesc);
+    return sorted;
+  }
+
+  int _compareTicketsByTimeDesc(KitchenTicket a, KitchenTicket b) {
+    final aTime = _ticketDateTime(a);
+    final bTime = _ticketDateTime(b);
+    if (aTime == null && bTime == null) {
+      return b.orderItemId.compareTo(a.orderItemId);
+    }
+    if (aTime == null) {
+      return 1;
+    }
+    if (bTime == null) {
+      return -1;
+    }
+    return bTime.compareTo(aTime);
+  }
+
+  DateTime? _ticketDateTime(KitchenTicket ticket) {
+    return _parseTimestamp(ticket.orderedAt) ?? _parseTimestamp(ticket.updatedAt);
+  }
+
+  DateTime? _parseTimestamp(String? value) {
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+    final direct = DateTime.tryParse(value);
+    if (direct != null) {
+      return direct;
+    }
+    if (value.contains(' ')) {
+      return DateTime.tryParse(value.replaceFirst(' ', 'T'));
+    }
+    return null;
   }
 
   Future<void> _logout() async {
@@ -426,54 +506,79 @@ class _HomeKitchenScreenState extends State<HomeKitchenScreen> {
     required Future<void> Function() onRefresh,
     required ColorScheme colorScheme,
     required String emptyMessage,
+    Widget? header,
   }) {
     if (loading) {
+      final children = <Widget>[
+        if (header != null) ...[
+          header!,
+          const SizedBox(height: 12),
+        ],
+        const SizedBox(height: 120),
+        const Center(child: CircularProgressIndicator()),
+        const SizedBox(height: 120),
+      ];
       return RefreshIndicator(
         onRefresh: onRefresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          children: const [
-            SizedBox(height: 120),
-            Center(child: CircularProgressIndicator()),
-            SizedBox(height: 120),
-          ],
+          padding: const EdgeInsets.all(16),
+          children: children,
         ),
       );
     }
     if (error != null) {
+      final children = <Widget>[
+        if (header != null) ...[
+          header!,
+          const SizedBox(height: 12),
+        ],
+        Text(
+          error,
+          style: TextStyle(color: colorScheme.error),
+        ),
+      ];
       return RefreshIndicator(
         onRefresh: onRefresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(24),
-          children: [
-            Text(
-              error,
-              style: TextStyle(color: colorScheme.error),
-            ),
-          ],
+          padding: const EdgeInsets.all(16),
+          children: children,
         ),
       );
     }
     if (tickets.isEmpty) {
+      final children = <Widget>[
+        if (header != null) ...[
+          header!,
+          const SizedBox(height: 12),
+        ],
+        const SizedBox(height: 48),
+        Center(child: Text(emptyMessage)),
+      ];
       return RefreshIndicator(
         onRefresh: onRefresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            const SizedBox(height: 48),
-            Center(child: Text(emptyMessage)),
-          ],
+          padding: const EdgeInsets.all(16),
+          children: children,
         ),
       );
     }
     return RefreshIndicator(
       onRefresh: onRefresh,
-      child: ListView.builder(
+      child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
-        itemCount: tickets.length,
+        itemCount: tickets.length + (header != null ? 1 : 0),
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
+          if (header != null) {
+            if (index == 0) {
+              return header;
+            }
+            index -= 1;
+          }
           final ticket = tickets[index];
           final subtitleParts = <String>[];
           if (ticket.tableLabel != null && ticket.tableLabel!.isNotEmpty) {
@@ -510,6 +615,18 @@ class _HomeKitchenScreenState extends State<HomeKitchenScreen> {
             trailing: _buildStatusSelector(ticket, colorScheme),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildAutoRefreshTile() {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: SwitchListTile.adaptive(
+        title: const Text('Tự động tải lại'),
+        subtitle: const Text('Làm mới hàng đợi sau mỗi 30 giây'),
+        value: _autoRefreshEnabled,
+        onChanged: _handleAutoRefreshChanged,
       ),
     );
   }
@@ -655,6 +772,7 @@ class _HomeKitchenScreenState extends State<HomeKitchenScreen> {
                     onRefresh: _refreshQueue,
                     colorScheme: colorScheme,
                     emptyMessage: 'Không có món nào đang chờ.',
+                    header: _buildAutoRefreshTile(),
                   ),
                   _buildTicketList(
                     tickets: _historyTickets,
