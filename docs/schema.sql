@@ -1,4 +1,4 @@
--- Database schema for POS Flutter PKA
+-- Legacy database schema for Savor POS
 CREATE TABLE IF NOT EXISTS tables (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   name VARCHAR(50) NOT NULL,

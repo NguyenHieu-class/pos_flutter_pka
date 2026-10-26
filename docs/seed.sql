@@ -1,4 +1,4 @@
--- Seed data for POS Flutter PKA
+-- Legacy seed data for Savor POS
 -- Tables
 INSERT INTO tables (name, status) VALUES
   ('Bàn 1', 'available'),

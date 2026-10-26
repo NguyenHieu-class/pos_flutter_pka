@@ -1,5 +1,5 @@
 name: pos_flutter_pka
-description: "POS Flutter PKA starter project"
+description: "Savor POS - Restaurant point-of-sale and management application"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  image: 4.9.2
+  archive: 4.0.9
   flutter_riverpod: ^2.5.1
   riverpod: ^2.5.1
   mysql1: ^0.20.0

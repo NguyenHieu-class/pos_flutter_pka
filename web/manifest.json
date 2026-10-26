@@ -1,11 +1,11 @@
 {
-    "name": "pos_flutter_pka",
-    "short_name": "pos_flutter_pka",
+    "name": "Savor POS",
+    "short_name": "Savor POS",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Savor POS - Hệ thống quản lý bán hàng nhà hàng.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

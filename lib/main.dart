@@ -63,7 +63,7 @@ class _POSAppState extends State<POSApp> {
     );
 
     return MaterialApp(
-      title: 'PKA POS',
+      title: 'Savor POS',
       debugShowCheckedModeBanner: false,
       theme: theme,
       navigatorKey: rootNavigatorKey,

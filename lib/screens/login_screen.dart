@@ -98,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Text(
-                        'Nhà hàng PKA POS',
+                        'Savor POS',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
