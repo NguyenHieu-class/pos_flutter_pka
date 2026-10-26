@@ -1,3 +1,4 @@
+import '../widgets/restaurant_map_view.dart';
 import 'package:flutter/material.dart';
 
 import '../models/area.dart';
@@ -15,6 +16,7 @@ class TablesScreen extends StatefulWidget {
 
 class _TablesScreenState extends State<TablesScreen> {
   final _orderService = OrderService.instance;
+  bool _showMap = false;
   List<Area> _areas = const [];
   int? _selectedAreaId;
   late Future<List<DiningTable>> _tablesFuture =
@@ -124,7 +126,8 @@ class _TablesScreenState extends State<TablesScreen> {
   Future<void> _showTableDialog({DiningTable? table}) async {
     if (_areas.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng tạo khu bàn trước khi thêm bàn mới')),
+        const SnackBar(
+            content: Text('Vui lòng tạo khu bàn trước khi thêm bàn mới')),
       );
       return;
     }
@@ -145,9 +148,8 @@ class _TablesScreenState extends State<TablesScreen> {
       'occupied': 'Đang dùng',
       'cleaning': 'Đang dọn',
     };
-    String status = statuses.containsKey(table?.status ?? '')
-        ? table!.status!
-        : 'free';
+    String status =
+        statuses.containsKey(table?.status ?? '') ? table!.status! : 'free';
 
     final shouldReload = await showDialog<bool>(
       context: context,
@@ -265,7 +267,8 @@ class _TablesScreenState extends State<TablesScreen> {
                           }
                           if (areaId == null) {
                             messenger.showSnackBar(
-                              const SnackBar(content: Text('Vui lòng chọn khu bàn')), 
+                              const SnackBar(
+                                  content: Text('Vui lòng chọn khu bàn')),
                             );
                             return;
                           }
@@ -288,7 +291,8 @@ class _TablesScreenState extends State<TablesScreen> {
                                 status: status,
                               );
                               messenger.showSnackBar(
-                                const SnackBar(content: Text('Đã thêm bàn mới')), 
+                                const SnackBar(
+                                    content: Text('Đã thêm bàn mới')),
                               );
                             } else {
                               await _orderService.updateTable(
@@ -301,7 +305,8 @@ class _TablesScreenState extends State<TablesScreen> {
                                 status: status,
                               );
                               messenger.showSnackBar(
-                                const SnackBar(content: Text('Đã cập nhật thông tin bàn')), 
+                                const SnackBar(
+                                    content: Text('Đã cập nhật thông tin bàn')),
                               );
                             }
 
@@ -315,7 +320,8 @@ class _TablesScreenState extends State<TablesScreen> {
                             setStateDialog(() => isSubmitting = false);
                           } catch (error) {
                             messenger.showSnackBar(
-                              SnackBar(content: Text('Không thể lưu bàn: $error')),
+                              SnackBar(
+                                  content: Text('Không thể lưu bàn: $error')),
                             );
                             setStateDialog(() => isSubmitting = false);
                           }
@@ -352,6 +358,10 @@ class _TablesScreenState extends State<TablesScreen> {
       ),
       body: Column(
         children: [
+          TableViewToggle(
+            map: _showMap,
+            onChanged: (value) => setState(() => _showMap = value),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Row(
@@ -415,11 +425,17 @@ class _TablesScreenState extends State<TablesScreen> {
                     );
                   }
                   final tables = snapshot.data ?? [];
+                  if (_showMap) {
+                    return RestaurantMapView(
+                        configure: true,
+                        tables: tables,
+                        onTableTap: (table) => _showTableDialog(table: table));
+                  }
                   if (tables.isEmpty) {
                     return ListView(
                       children: const [
                         SizedBox(height: 48),
-                        Center(child: Text('Chưa có bàn nào.')), 
+                        Center(child: Text('Chưa có bàn nào.')),
                       ],
                     );
                   }
@@ -502,4 +518,3 @@ class _TablesScreenState extends State<TablesScreen> {
     );
   }
 }
-

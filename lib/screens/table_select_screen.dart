@@ -1,3 +1,4 @@
+import '../widgets/restaurant_map_view.dart';
 import 'package:flutter/material.dart';
 
 import '../models/area.dart';
@@ -17,6 +18,7 @@ class TableSelectScreen extends StatefulWidget {
 
 class _TableSelectScreenState extends State<TableSelectScreen> {
   final _orderService = OrderService.instance;
+  bool _showMap = false;
   List<Area> _areas = const [];
   int? _selectedAreaId;
   String _statusFilter = 'all';
@@ -95,7 +97,8 @@ class _TableSelectScreenState extends State<TableSelectScreen> {
         await _openOrderDetail(table.openOrderId!, table.name);
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không tìm thấy order đang mở cho ${table.name}')),
+          SnackBar(
+              content: Text('Không tìm thấy order đang mở cho ${table.name}')),
         );
       }
       return;
@@ -157,7 +160,8 @@ class _TableSelectScreenState extends State<TableSelectScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => OrderDetailScreen(orderId: orderId, tableName: tableName),
+        builder: (_) =>
+            OrderDetailScreen(orderId: orderId, tableName: tableName),
       ),
     );
     if (!mounted) return;
@@ -171,7 +175,9 @@ class _TableSelectScreenState extends State<TableSelectScreen> {
       await _orderService.updateTableStatus(tableId: table.id, status: status);
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('Đã cập nhật ${table.name} sang trạng thái ${_statusLabel(status)}')),
+        SnackBar(
+            content: Text(
+                'Đã cập nhật ${table.name} sang trạng thái ${_statusLabel(status)}')),
       );
       await _reloadTables();
     } on ApiException catch (error) {
@@ -259,7 +265,11 @@ class _TableSelectScreenState extends State<TableSelectScreen> {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
-    final crossAxisCount = width > 900 ? 4 : width > 600 ? 3 : 2;
+    final crossAxisCount = width > 900
+        ? 4
+        : width > 600
+            ? 3
+            : 2;
     final colorScheme = Theme.of(context).colorScheme;
     final areaChips = _areas.map((area) {
       final id = area.id;
@@ -294,6 +304,10 @@ class _TableSelectScreenState extends State<TableSelectScreen> {
       appBar: AppBar(title: const Text('Chọn bàn phục vụ')),
       body: Column(
         children: [
+          TableViewToggle(
+            map: _showMap,
+            onChanged: (value) => setState(() => _showMap = value),
+          ),
           SizedBox(
             height: 72,
             child: ListView(
@@ -341,6 +355,10 @@ class _TableSelectScreenState extends State<TableSelectScreen> {
                     );
                   }
                   final tables = snapshot.data ?? [];
+                  if (_showMap) {
+                    return RestaurantMapView(
+                        tables: tables, onTableTap: _handleTableTap);
+                  }
                   if (tables.isEmpty) {
                     final message = _statusFilter == 'all'
                         ? 'Không có bàn trong khu vực này.'
@@ -378,7 +396,11 @@ class _TableSelectScreenState extends State<TableSelectScreen> {
                           onSelected: (value) => _setTableStatus(table, value),
                           itemBuilder: (context) {
                             return [
-                              for (final statusOption in ['free', 'occupied', 'cleaning'])
+                              for (final statusOption in [
+                                'free',
+                                'occupied',
+                                'cleaning'
+                              ])
                                 PopupMenuItem<String>(
                                   value: statusOption,
                                   enabled: table.status != statusOption,

@@ -1,0 +1,4 @@
+Generated with the built-in image_gen tool.
+
+Prompt:
+Create a photorealistic wide landscape background photograph for Savor POS restaurant login screen. Contemporary welcoming Vietnamese restaurant interior, warm amber pendant lights, walnut wood tables, elegant woven chairs, subtle green foliage, beautifully set dining tables, soft evening light, understated premium hospitality atmosphere. Wide architectural photography, natural realistic materials, composition with interesting restaurant details at edges and a calm softly out-of-focus central area behind a login card. No people, no lettering, no signage, no logos, no UI, no watermark. Landscape 1536x1024. This is a project asset; return saved local image path if available.
